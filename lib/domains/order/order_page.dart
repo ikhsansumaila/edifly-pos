@@ -1,7 +1,9 @@
 import 'package:edifly_pos/core/utils/currency.dart';
+import 'package:edifly_pos/domains/auth/auth_controller.dart';
 import 'package:edifly_pos/domains/closing/closing_order.dart';
 import 'package:edifly_pos/domains/order/cart_item_controller.dart';
 import 'package:edifly_pos/domains/product/product_model.dart';
+import 'package:edifly_pos/widgets/custom_network_image.dart';
 import 'package:edifly_pos/widgets/top_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -11,40 +13,44 @@ class PosOrderPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cartController = Get.put(CartItemController());
     print("test");
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6F8),
       body: Column(
         children: [
-          TopBar(
-            menus: [
-              TopBarMenuModel(
-                label: 'Pesanan',
-                icon: Icons.receipt_long,
-                isActive: true,
-                onTap: () {
-                  print("Membuka List Pesanan...");
-                  // Jalankan fungsi A
-                },
-              ),
-              TopBarMenuModel(
-                label: 'Tutup Pesanan',
-                icon: Icons.lock,
-                onTap: () {
-                  Get.to(() => const ReconciliationPage());
-                  // Jalankan fungsi B (Contoh: Navigasi ke halaman rekonsiliasi)
-                },
-              ),
-              TopBarMenuModel(
-                label: 'Logout',
-                icon: Icons.exit_to_app,
-                onTap: () {
-                  // Jalankan fungsi C (Contoh: Show Dialog Logout)
-                  // _showLogoutDialog(context);
-                },
-              ),
-            ],
-          ),
+          Obx(() {
+            return TopBar(
+              userName: cartController.userName.value,
+              menus: [
+                TopBarMenuModel(
+                  label: 'Pesanan',
+                  icon: Icons.receipt_long,
+                  isActive: true,
+                  onTap: () {
+                    print("Membuka List Pesanan...");
+                    // Jalankan fungsi A
+                  },
+                ),
+                TopBarMenuModel(
+                  label: 'Tutup Pesanan',
+                  icon: Icons.lock,
+                  onTap: () {
+                    Get.to(() => const ReconciliationPage());
+                    // Jalankan fungsi B (Contoh: Navigasi ke halaman rekonsiliasi)
+                  },
+                ),
+                TopBarMenuModel(
+                  label: 'Logout',
+                  icon: Icons.exit_to_app,
+                  onTap: () {
+                    final authController = Get.put(AuthController());
+                    authController.logout();
+                  },
+                ),
+              ],
+            );
+          }),
           // _topBar(),
           Expanded(
             child: Row(
@@ -58,98 +64,6 @@ class PosOrderPage extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  // ================= TOP BAR =================
-  // Widget _topBar() {
-  //   return Container(
-  //     height: 64,
-  //     padding: const EdgeInsets.symmetric(horizontal: 16),
-  //     decoration: const BoxDecoration(
-  //       color: Color(0xFFE6ECEC),
-  //       border: Border(bottom: BorderSide(color: Colors.black12)),
-  //     ),
-  //     child: Row(
-  //       children: [
-  //         /// SEARCH
-  //         Expanded(
-  //           flex: 3,
-  //           child: TextField(
-  //             decoration: InputDecoration(
-  //               hintText: 'Cari produk / pesanan...',
-  //               hintStyle: TextStyle(color: Colors.grey),
-  //               prefixIcon: const Icon(Icons.search),
-  //               prefixIconColor: Colors.grey,
-  //               filled: true,
-  //               fillColor: Colors.white,
-  //               border: OutlineInputBorder(
-  //                 borderRadius: BorderRadius.circular(30),
-  //                 borderSide: BorderSide.none,
-  //               ),
-  //               isDense: true,
-  //               contentPadding: const EdgeInsets.symmetric(horizontal: 10),
-  //             ),
-  //           ),
-  //         ),
-
-  //         const SizedBox(width: 12),
-
-  //         /// MENU NAV (SCROLLABLE)
-  //         Expanded(
-  //           flex: 4,
-  //           child: SingleChildScrollView(
-  //             scrollDirection: Axis.horizontal,
-  //             child: Row(
-  //               children: [
-  //                 // _topMenuItem(Icons.home, 'Home'),
-  //                 // _topMenuItem(Icons.store, 'Outlet'),
-  //                 // _topMenuItem(Icons.bar_chart, 'Penjualan'),
-  //                 _topMenuItem(Icons.receipt_long, 'Pesanan', active: true),
-  //                 _topMenuItem(Icons.lock, 'Tutup Pesanan', onTap: () => (){}),
-  //               ],
-  //             ),
-  //           ),
-  //         ),
-
-  //         const SizedBox(width: 12),
-
-  //         /// USER INFO (FIXED)
-  //         Row(
-  //           children: const [
-  //             Icon(Icons.dark_mode_outlined, size: 20, color: Colors.grey),
-  //             SizedBox(width: 8),
-  //             Text('Kasir Bella Terra', style: TextStyle(fontSize: 12, color: Colors.grey)),
-  //             SizedBox(width: 6),
-  //             CircleAvatar(radius: 14, child: Icon(Icons.person, size: 16)),
-  //           ],
-  //         ),
-  //       ],
-  //     ),
-  //   );
-  // }
-
-  Widget _topMenuItem(IconData icon, String label, Function()? onTap, {bool active = false}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: active ? Colors.black : Colors.black54),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: active ? FontWeight.bold : FontWeight.normal,
-                color: Colors.grey,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -175,43 +89,60 @@ class PosOrderPage extends StatelessWidget {
   }
 
   Widget _categoryRow() {
-    final categories = ['SEMUA', 'BEEF', 'CAKE DELIGHTIN', 'CHICKEN', 'DIMSUM', 'DORI'];
+    final cartController = Get.find<CartItemController>();
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
-      child: Row(
-        children:
-            categories
-                .map(
-                  (e) => Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: Chip(
-                      label: Text(e),
-                      backgroundColor: e == 'SEMUA' ? Colors.black : Colors.grey,
-                      labelStyle: const TextStyle(color: Colors.white),
+      child: Obx(() {
+        return Row(
+          children:
+              cartController.categories
+                  .map(
+                    (e) => Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: GestureDetector(
+                        onTap: () => cartController.selectCategory(e),
+                        child: Chip(
+                          label: Text(e),
+                          backgroundColor:
+                              cartController.selectedCategory.value == e
+                                  ? Colors.black
+                                  : Colors.grey,
+                          labelStyle: const TextStyle(color: Colors.white),
+                        ),
+                      ),
                     ),
-                  ),
-                )
-                .toList(),
-      ),
+                  )
+                  .toList(),
+        );
+      }),
     );
   }
 
   Widget _menuGrid() {
-    final cartController = Get.put(CartItemController());
-    List<ProductModel> productList = cartController.productList;
-    return GridView.builder(
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        mainAxisSpacing: 16,
-        crossAxisSpacing: 16,
-        childAspectRatio: 0.85,
-      ),
-      itemCount: productList.length,
-      itemBuilder: (_, i) {
-        return _menuCard(product: productList[i]);
-      },
-    );
+    final cartController = Get.find<CartItemController>();
+
+    return Obx(() {
+      if (cartController.isLoading.value) {
+        return const Center(child: CircularProgressIndicator());
+      }
+      List<ProductModel> productList = cartController.filteredProductList;
+      if (productList.isEmpty) {
+        return const Center(child: Text("Tidak ada produk"));
+      }
+      return GridView.builder(
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          mainAxisSpacing: 16,
+          crossAxisSpacing: 16,
+          childAspectRatio: 0.85,
+        ),
+        itemCount: productList.length,
+        itemBuilder: (_, i) {
+          return _menuCard(product: productList[i]);
+        },
+      );
+    });
   }
 
   Widget _menuCard({required ProductModel product}) {
@@ -229,7 +160,7 @@ class PosOrderPage extends StatelessWidget {
               Expanded(
                 child: Stack(
                   children: [
-                    Center(child: Image.network(product.fotoUrl)),
+                    Center(child: CustomNetworkImage(imageUrl: product.fotoUrl, fit: BoxFit.cover)),
                     Positioned(
                       top: 0,
                       right: 0,
@@ -284,7 +215,14 @@ class PosOrderPage extends StatelessWidget {
               Text('🛒 Keranjang', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               GestureDetector(
                 onTap: () => cartController.removeAll(),
-                child: Text('HAPUS SEMUA', style: TextStyle(color: Colors.red, fontSize: 11)),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.delete_outline, color: Colors.red, size: 14),
+                    const SizedBox(width: 4),
+                    Text('HAPUS SEMUA', style: TextStyle(color: Colors.red, fontSize: 11)),
+                  ],
+                ),
               ),
             ],
           ),
@@ -324,36 +262,134 @@ class PosOrderPage extends StatelessWidget {
                 );
               }
 
-              return SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                child: Column(
+              return Column(
+                children: [
+                  /// CART ITEMS - Scrollable
+                  Expanded(
+                    flex: 1,
+                    child: ListView(
+                      physics: const BouncingScrollPhysics(),
+                      children:
+                          items
+                              .map(
+                                (e) => Container(
+                                  margin: const EdgeInsets.only(bottom: 8),
+                                  child: _cartItem(
+                                    id: e.id,
+                                    title: e.namaProduct,
+                                    price: '${formatRupiah(e.harga)} x ${e.qty}',
+                                    qty: e.qty,
+                                    onAdd: () => cartController.increment(e.id),
+                                    onRemove: () => cartController.decrement(e.id),
+                                    onDelete: () => cartController.remove(e.id),
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Divider(height: 1, thickness: 1, color: Colors.black12),
+                  const SizedBox(height: 12),
+
+                  /// CHECKOUT FORM - Scrollable
+                  Expanded(
+                    flex: 2,
+                    child: SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      child: _checkoutForm(),
+                    ),
+                  ),
+                ],
+              );
+            }),
+          ),
+
+          /// CHECKOUT BUTTON - Fixed at bottom
+          const SizedBox(height: 12),
+          Divider(height: 1, thickness: 1, color: Colors.black12),
+          const SizedBox(height: 12),
+
+          /// Kembalian
+          Obx(() {
+            final cartController = Get.find<CartItemController>();
+            if (!cartController.isOffline ||
+                !cartController.showNominalCash ||
+                cartController.cartItems.isEmpty) {
+              return const SizedBox.shrink();
+            }
+            final cashInput = cartController.cashAmount.value;
+            final total = cartController.total.value;
+
+            // Jika input 0 atau belum diisi, tampilkan Kembalian Rp 0
+            if (cashInput == 0) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    /// CART ITEMS
-                    ...items.map(
-                      (e) => Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: _cartItem(
-                          id: e.id,
-                          title: e.namaProduct,
-                          price: '${formatRupiah(e.harga)} x ${e.qty}',
-                          qty: e.qty,
-                          onAdd: () => cartController.increment(e.id),
-                          onRemove: () => cartController.decrement(e.id),
-                          onDelete: () => cartController.remove(e.id),
-                        ),
+                    Text(
+                      'Kembalian',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
-
-                    const SizedBox(height: 12),
-                    Divider(height: 1, thickness: 1, color: Colors.black12),
-                    const SizedBox(height: 12),
-
-                    /// CHECKOUT FORM
-                    _checkoutForm(),
+                    Text(
+                      formatRupiah(0),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ],
                 ),
               );
-            }),
+            }
+
+            final selisih = cashInput - total;
+            final isKurang = selisih < 0;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    isKurang ? 'Kurang' : 'Kembalian',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isKurang ? Colors.red : Colors.green,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  Text(
+                    isKurang ? formatRupiah(selisih.abs()) : formatRupiah(selisih),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isKurang ? Colors.red : Colors.green,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+
+          SizedBox(
+            width: double.infinity,
+            height: 42,
+            child: ElevatedButton.icon(
+              onPressed: () {},
+              icon: const Icon(Icons.check_circle_outline, size: 18),
+              label: const Text('CHECK OUT', style: TextStyle(fontWeight: FontWeight.bold)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF5B3A1E),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
           ),
         ],
       ),
@@ -373,7 +409,7 @@ class PosOrderPage extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
+        color: Colors.grey[150],
         borderRadius: BorderRadius.circular(8),
         boxShadow: [
           BoxShadow(
@@ -522,8 +558,11 @@ class PosOrderPage extends StatelessWidget {
           final controller = Get.find<CartItemController>();
 
           return DropdownButtonFormField<String>(
-            value: controller.selectedPayment.value,
-            style: TextStyle(color: Colors.black, fontSize: 13),
+            initialValue: controller.selectedPayment.value,
+            style: TextStyle(
+              color: controller.isOffline ? Colors.black : Colors.grey,
+              fontSize: 13,
+            ),
             dropdownColor: Colors.white,
             items:
                 controller.paymentMethods
@@ -542,7 +581,7 @@ class PosOrderPage extends StatelessWidget {
               filled: true,
               fillColor: controller.isOffline ? Colors.white : Colors.grey.shade200,
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(6),
                 borderSide: BorderSide(
@@ -573,7 +612,7 @@ class PosOrderPage extends StatelessWidget {
           ),
         ),
 
-        const SizedBox(height: 25),
+        const SizedBox(height: 12),
         Divider(height: 1, thickness: 1, color: Colors.black12),
         const SizedBox(height: 12),
 
@@ -623,26 +662,6 @@ class PosOrderPage extends StatelessWidget {
                   )
                   : const SizedBox.shrink(),
         ),
-
-        const SizedBox(height: 25),
-        Divider(height: 1, thickness: 1, color: Colors.black12),
-        const SizedBox(height: 12),
-
-        /// CHECKOUT
-        SizedBox(
-          width: double.infinity,
-          height: 42,
-          child: ElevatedButton.icon(
-            onPressed: () {},
-            icon: const Icon(Icons.check_circle_outline, size: 18),
-            label: const Text('CHECK OUT', style: TextStyle(fontWeight: FontWeight.bold)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF5B3A1E),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-          ),
-        ),
       ],
     );
   }
@@ -653,6 +672,7 @@ class PosOrderPage extends StatelessWidget {
         hintText: hint,
         hintStyle: TextStyle(color: Colors.grey.shade600, fontSize: 13),
         isDense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         filled: true,
         fillColor: Colors.grey.shade200,
         border: OutlineInputBorder(

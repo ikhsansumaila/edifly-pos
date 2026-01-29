@@ -1,3 +1,4 @@
+import 'package:edifly_pos/core/storage/auth_storage.dart';
 import 'package:edifly_pos/domains/product/product_model.dart';
 import 'package:edifly_pos/domains/product/product_service.dart';
 import 'package:flutter/material.dart';
@@ -10,6 +11,7 @@ class CartItemController extends GetxController {
   final total = 0.obs;
 
   final cashAmount = 0.obs;
+  final userName = ''.obs;
 
   final ProductService _service = Get.find();
 
@@ -34,20 +36,44 @@ class CartItemController extends GetxController {
     } else {
       selectedPayment.value = 'Tunai (Cash)';
     }
-    if (!isOffline) {
-      total.value = 0;
-    }
   }
+
+  final selectedCategory = 'SEMUA'.obs;
+
+  List<String> get categories {
+    final cats = productList.map((e) => e.categoryName).toSet().toList();
+    cats.sort();
+    return ['SEMUA', ...cats];
+  }
+
+  List<ProductModel> get filteredProductList {
+    if (selectedCategory.value == 'SEMUA') {
+      return productList;
+    }
+    return productList.where((p) => p.categoryName == selectedCategory.value).toList();
+  }
+
+  void selectCategory(String category) {
+    selectedCategory.value = category;
+  }
+
+  final isLoading = false.obs;
 
   @override
   void onInit() {
     super.onInit();
     loadProducts();
+    loadUser();
+  }
+
+  Future<void> loadUser() async {
+    userName.value = await AuthStorage.getName() ?? 'Kasir';
   }
 
   Future<void> loadProducts() async {
+    isLoading.value = true;
     try {
-      final products = await _service.fetchProducts(token: "");
+      final products = await _service.fetchProducts();
       productList.assignAll(products);
     } catch (e) {
       Get.snackbar(
@@ -57,6 +83,8 @@ class CartItemController extends GetxController {
         backgroundColor: Colors.redAccent,
         colorText: Colors.white,
       );
+    } finally {
+      isLoading.value = false;
     }
   }
 

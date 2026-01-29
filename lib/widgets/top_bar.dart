@@ -24,7 +24,7 @@ class TopBar extends StatelessWidget {
     super.key,
     required this.menus, // List menu dikirim dari luar
     this.searchController,
-    this.userName = 'Kasir Bella Terra',
+    this.userName = '',
   });
 
   @override
@@ -37,62 +37,38 @@ class TopBar extends StatelessWidget {
         border: Border(bottom: BorderSide(color: Colors.black12)),
       ),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          /// SEARCH SECTION
+          /// LEFT SPACER
+          const Spacer(),
+
+          /// MENU NAV (Dinamis berdasarkan List) - CENTERED
+          Row(children: menus.map((menu) => _buildItem(menu)).toList()),
+
+          /// RIGHT SPACER + USER INFO
           Expanded(
-            flex: 3,
-            child: TextField(
-              controller: searchController,
-              decoration: InputDecoration(
-                hintText: 'Cari produk / pesanan...',
-                hintStyle: const TextStyle(color: Colors.grey, fontSize: 13),
-                prefixIcon: const Icon(Icons.search, size: 20),
-                prefixIconColor: Colors.grey,
-                filled: true,
-                fillColor: Colors.white,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(30),
-                  borderSide: BorderSide.none,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                const Icon(Icons.dark_mode_outlined, size: 20, color: Colors.grey),
+                const SizedBox(width: 12),
+                Text(
+                  userName,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
-                isDense: true,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              ),
-            ),
-          ),
-
-          const SizedBox(width: 12),
-
-          /// MENU NAV (Dinamis berdasarkan List)
-          Expanded(
-            flex: 4,
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(children: menus.map((menu) => _buildItem(menu)).toList()),
-            ),
-          ),
-
-          const SizedBox(width: 12),
-
-          /// USER INFO
-          Row(
-            children: [
-              const Icon(Icons.dark_mode_outlined, size: 20, color: Colors.grey),
-              const SizedBox(width: 12),
-              Text(
-                userName,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey,
-                  fontWeight: FontWeight.w500,
+                const SizedBox(width: 10),
+                const CircleAvatar(
+                  radius: 16,
+                  backgroundColor: Colors.blueGrey,
+                  child: Icon(Icons.person, size: 18, color: Colors.white),
                 ),
-              ),
-              const SizedBox(width: 10),
-              const CircleAvatar(
-                radius: 16,
-                backgroundColor: Colors.blueGrey,
-                child: Icon(Icons.person, size: 18, color: Colors.white),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),

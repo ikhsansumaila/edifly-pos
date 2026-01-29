@@ -36,4 +36,26 @@ class AuthService {
       throw 'Server error (${response.statusCode})';
     }
   }
+
+  static Future<void> logout(String token) async {
+    final url = Uri.parse('$API_BASE_URL/auth/logout');
+
+    final response = await http.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final decoded = jsonDecode(response.body);
+      if (decoded['status'] != true) {
+        throw decoded['message'] ?? 'Logout gagal';
+      }
+    } else {
+      throw 'Server error (${response.statusCode})';
+    }
+  }
 }

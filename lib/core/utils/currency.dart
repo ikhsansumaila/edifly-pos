@@ -49,6 +49,7 @@ class RupiahInput extends StatelessWidget {
         isDense: true,
         filled: true,
         fillColor: Colors.grey.shade200,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide.none,
