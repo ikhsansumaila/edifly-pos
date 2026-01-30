@@ -1,7 +1,7 @@
 import 'package:edifly_pos/core/utils/currency.dart';
 import 'package:edifly_pos/domains/auth/auth_controller.dart';
-import 'package:edifly_pos/domains/closing/closing_order.dart';
 import 'package:edifly_pos/domains/order/cart_item_controller.dart';
+import 'package:edifly_pos/domains/order/closing_order.dart';
 import 'package:edifly_pos/domains/product/product_model.dart';
 import 'package:edifly_pos/widgets/custom_network_image.dart';
 import 'package:edifly_pos/widgets/top_bar.dart';

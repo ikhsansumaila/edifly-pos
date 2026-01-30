@@ -30,7 +30,7 @@ class PosApp extends StatelessWidget {
       /// Disable Material 3 for stable POS UI
       theme: ThemeData(
         useMaterial3: false,
-        brightness: Brightness.dark,
+        brightness: Brightness.light,
         primaryColor: const Color(0xFF4A3728),
         scaffoldBackgroundColor: Colors.black,
         fontFamily: 'Roboto',

@@ -1,5 +1,5 @@
 import 'package:edifly_pos/core/storage/auth_storage.dart';
-import 'package:edifly_pos/domains/closing/closing_order.dart';
+import 'package:edifly_pos/domains/order/closing_order.dart';
 import 'package:edifly_pos/domains/order/order_page.dart';
 import 'package:edifly_pos/domains/product/product_service.dart';
 import 'package:get/get.dart';

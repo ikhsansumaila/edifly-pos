@@ -34,7 +34,7 @@ class _PosLoginPageState extends State<PosLoginPage> {
             child: ConstrainedBox(
               constraints: BoxConstraints(maxHeight: size.height * 0.88),
               child: SizedBox(
-                width: size.width * 0.42,
+                width: size.width * 0.35,
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(18),
                   child: BackdropFilter(
@@ -149,7 +149,7 @@ class _PosLoginPageState extends State<PosLoginPage> {
 
   Widget _outletField() {
     return DropdownButtonFormField<String>(
-      value: _selectedOutlet,
+      initialValue: _selectedOutlet,
       isDense: true,
       dropdownColor: const Color(0xFF3A2E23),
       style: const TextStyle(color: Colors.white),
