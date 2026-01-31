@@ -168,29 +168,29 @@ class _PosLoginPageState extends State<PosLoginPage> {
     );
   }
 
-  Widget _captchaRow() {
-    return Row(
-      children: [
-        Container(
-          width: 80,
-          height: 36,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(6)),
-          child: const Text(
-            '2873',
-            style: TextStyle(fontSize: 16, letterSpacing: 2, fontWeight: FontWeight.bold),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: TextField(
-            style: const TextStyle(color: Colors.white),
-            decoration: _decoration(hint: 'CAPTCHA'),
-          ),
-        ),
-      ],
-    );
-  }
+  // Widget _captchaRow() {
+  //   return Row(
+  //     children: [
+  //       Container(
+  //         width: 80,
+  //         height: 36,
+  //         alignment: Alignment.center,
+  //         decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(6)),
+  //         child: const Text(
+  //           '2873',
+  //           style: TextStyle(fontSize: 16, letterSpacing: 2, fontWeight: FontWeight.bold),
+  //         ),
+  //       ),
+  //       const SizedBox(width: 8),
+  //       Expanded(
+  //         child: TextField(
+  //           style: const TextStyle(color: Colors.white),
+  //           decoration: _decoration(hint: 'CAPTCHA'),
+  //         ),
+  //       ),
+  //     ],
+  //   );
+  // }
 
   Widget _loginButton() {
     return SizedBox(

@@ -275,8 +275,9 @@ class _ClosingShiftPageState extends State<ClosingShiftPage> {
                                 ),
                                 const SizedBox(height: 6),
                                 Obx(() {
-                                  if (controller.userInputCash.value == 0)
+                                  if (controller.userInputCash.value == 0) {
                                     return const SizedBox.shrink();
+                                  }
                                   return Text(
                                     terbilang(controller.userInputCash.value),
                                     style: TextStyle(

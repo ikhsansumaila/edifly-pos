@@ -20,7 +20,7 @@ class ApiClient {
     final url = Uri.parse('$API_BASE_URL$endpoint');
     final headers = await _getHeaders();
 
-    print("[GET] $url");
+    // print("[GET] $url");
     final response = await InspectorHttpClient.get(url, headers: headers);
     await _handleResponse(response);
     return response;
@@ -33,7 +33,7 @@ class ApiClient {
     // Ensure body is JSON encoded if it's a Map
     final finalBody = (body is Map) ? jsonEncode(body) : body;
 
-    print("[POST] $url");
+    // print("[POST] $url");
     final response = await InspectorHttpClient.post(url, headers: headers, body: finalBody);
     await _handleResponse(response);
     return response;
@@ -41,7 +41,7 @@ class ApiClient {
 
   static Future<void> _handleResponse(http.Response response) async {
     if (response.statusCode == 401) {
-      print("Unauthorized (401) detected. Logging out...");
+      // print("Unauthorized (401) detected. Logging out...");
       await AuthStorage.clearAuth();
       Get.offAllNamed(Routes.login);
       // Optional: Throw exception to stop further execution in the calling service

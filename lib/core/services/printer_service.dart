@@ -770,7 +770,7 @@ class PrinterService extends GetxController {
     tspl.writeln('FORMFEED'); // Stop paper
     tspl.writeln('EOP');
 
-    print("finalHeight: $finalHeight, height: $height, lineHeight: $lineHeight");
+    // print("finalHeight: $finalHeight, height: $height, lineHeight: $lineHeight");
 
     // Send TSPL command
     try {

@@ -1,5 +1,6 @@
 import 'package:edifly_pos/core/services/printer_service.dart';
 import 'package:edifly_pos/domains/auth/login_page.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -20,7 +21,7 @@ void main() async {
   /// Initialize PrinterService
   Get.put(PrinterService());
 
-  runApp(const RequestsInspector(enabled: true, child: PosApp()));
+  runApp(const RequestsInspector(enabled: kDebugMode ? true : false, child: PosApp()));
 }
 
 class PosApp extends StatelessWidget {

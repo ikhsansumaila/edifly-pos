@@ -45,7 +45,7 @@ class AuthController extends GetxController {
     }
 
     try {
-      print("token ${await AuthStorage.getToken()}");
+      // print("token ${await AuthStorage.getToken()}");
       isLoading.value = true;
 
       final data = await AuthService.login(email: email.value, password: password.value);
@@ -76,7 +76,7 @@ class AuthController extends GetxController {
       Get.put(ProductService());
       Get.offAll(() => const PosOrderPage());
     } catch (e) {
-      print("login error $e");
+      // print("login error $e");
       Get.snackbar(
         'Login Gagal',
         e.toString(),

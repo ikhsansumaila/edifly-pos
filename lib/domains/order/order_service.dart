@@ -28,7 +28,7 @@ class OrderService {
         "queue_number": queueNumber,
       },
     );
-    print("response checkout: ${response.body}");
+    // print("response checkout: ${response.body}");
 
     return jsonDecode(response.body);
   }

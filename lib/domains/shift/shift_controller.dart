@@ -206,7 +206,7 @@ class ShiftController extends GetxController {
         );
       }
     } catch (e) {
-      print("Error loading closing data: $e");
+      // print("Error loading closing data: $e");
       Get.defaultDialog(
         title: 'Error',
         middleText: 'Gagal memuat data: $e',

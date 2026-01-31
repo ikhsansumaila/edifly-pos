@@ -28,7 +28,7 @@ class PosOrderPage extends StatelessWidget {
                   icon: Icons.receipt_long,
                   isActive: true,
                   onTap: () {
-                    print("Membuka List Pesanan...");
+                    // print("Membuka List Pesanan...");
                     // Jalankan fungsi A
                   },
                 ),
@@ -424,7 +424,7 @@ class PosOrderPage extends StatelessWidget {
     required VoidCallback onRemove,
     required VoidCallback onDelete,
   }) {
-    print("cartItem productID $id");
+    // print("cartItem productID $id");
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
@@ -680,7 +680,7 @@ class PosOrderPage extends StatelessWidget {
                       RupiahInput(
                         hint: 'Masukkan nominal',
                         onChanged: (val) {
-                          print("Nilai int: $val");
+                          // print("Nilai int: $val");
                           cartController.cashAmount.value = val;
                         },
                       ),

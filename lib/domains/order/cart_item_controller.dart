@@ -201,7 +201,7 @@ class CartItemController extends GetxController {
     for (final item in cartItems.values) {
       total.value += item.harga * item.qty;
     }
-    print("total.value ${total.value}");
+    // print("total.value ${total.value}");
     update();
   }
 
@@ -232,7 +232,7 @@ class CartItemController extends GetxController {
       isLoading.value = true;
       final shiftController = Get.find<ShiftController>();
 
-      print("shiftController.currentShiftId.value ${shiftController.currentShiftId.value}");
+      // print("shiftController.currentShiftId.value ${shiftController.currentShiftId.value}");
       // Ensure shift ID is available
       if (shiftController.currentShiftId.value == null) {
         await shiftController.getActiveShift();
