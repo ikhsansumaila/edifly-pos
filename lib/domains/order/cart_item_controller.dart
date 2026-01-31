@@ -92,19 +92,23 @@ class CartItemController extends GetxController {
     outletName.value = await AuthStorage.getNamaOutlet() ?? '';
   }
 
+  void _showErrorDialog(String message) {
+    Get.defaultDialog(
+      title: 'Error',
+      middleText: message,
+      textConfirm: 'OK',
+      onConfirm: () => Get.back(),
+      confirmTextColor: Colors.white,
+    );
+  }
+
   Future<void> loadProducts() async {
     isLoadingProduct.value = true;
     try {
       final products = await _service.fetchProducts();
       productList.assignAll(products);
     } catch (e) {
-      Get.snackbar(
-        'Error',
-        e.toString(),
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.redAccent,
-        colorText: Colors.white,
-      );
+      _showErrorDialog(e.toString());
     } finally {
       isLoadingProduct.value = false;
     }
@@ -132,23 +136,23 @@ class CartItemController extends GetxController {
                 openedAt.month == now.month &&
                 openedAt.day == now.day)) {
               // Different day, must close previous shift first
-              Get.snackbar(
-                'Perhatian',
-                'Anda memiliki shift aktif dari hari sebelumnya. Harap lakukan closing terlebih dahulu.',
+              Get.defaultDialog(
+                title: 'Perhatian',
+                middleText:
+                    'Anda memiliki shift aktif dari hari sebelumnya. Harap lakukan closing terlebih dahulu.',
+                textConfirm: 'OK',
+                onConfirm: () {
+                  Get.back();
+                  Get.offAll(() => const ClosingShiftPage());
+                },
+                confirmTextColor: Colors.white,
               );
-              Get.offAll(() => const ClosingShiftPage());
               return;
             }
           }
         }
       } catch (e) {
-        Get.snackbar(
-          'Error',
-          e.toString(),
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.redAccent,
-          colorText: Colors.white,
-        );
+        _showErrorDialog(e.toString());
       }
     }
 
@@ -291,45 +295,10 @@ class CartItemController extends GetxController {
       customerNameController.clear();
       queueNumberController.clear();
       cashAmount.value = 0;
-      // potentially navigate or show success dialog?
-      // Get.snackbar('Sukses', 'Pesanan berhasil diproses');
     } catch (e) {
-      Get.snackbar('Error', 'Checkout gagal: $e');
+      _showErrorDialog('Checkout gagal: $e');
     } finally {
       isLoading.value = false;
     }
-  }
-
-  void _showErrorDialog(String message) {
-    Get.dialog(
-      Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.info_outline, color: Colors.orange, size: 48),
-              const SizedBox(height: 16),
-              const Text('Perhatian', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              Text(message, textAlign: TextAlign.center, style: const TextStyle(fontSize: 14)),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => Get.back(),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.black,
-                    foregroundColor: Colors.white,
-                  ),
-                  child: const Text('OK'),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 }

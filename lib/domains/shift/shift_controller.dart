@@ -3,6 +3,7 @@ import 'package:edifly_pos/domains/order/order_page.dart';
 import 'package:edifly_pos/domains/product/product_service.dart';
 import 'package:edifly_pos/domains/shift/closing_shift.dart';
 import 'package:edifly_pos/domains/shift/open_shift_page.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import 'shift_service.dart';
@@ -71,7 +72,13 @@ class ShiftController extends GetxController {
 
   Future<void> openShift() async {
     if (openingCash.value < 0) {
-      Get.snackbar('Error', 'Kas awal tidak boleh kurang dari 0');
+      Get.defaultDialog(
+        title: 'Error',
+        middleText: 'Kas awal tidak boleh kurang dari 0',
+        textConfirm: 'OK',
+        onConfirm: () => Get.back(),
+        confirmTextColor: Colors.white,
+      );
       return;
     }
 
@@ -84,19 +91,36 @@ class ShiftController extends GetxController {
 
       if (response['status'] == true) {
         isShiftOpen.value = true;
+        // Success can stay as snackbar or be popup too? User said "error snackbar".
+        // But let's keep success as is mostly unless it's critical.
+        // Wait, user said "ganti semua snackbar error". So keep success.
         Get.snackbar('Sukses', 'Shift berhasil dibuka');
         Get.put(ProductService());
         Get.offAll(() => const PosOrderPage());
       } else {
         if (response['message']?.toString().contains('Tutup shift sebelumnya') ?? false) {
-          Get.snackbar('Perhatian', response['message']);
-          Get.to(() => const ClosingShiftPage());
+          Get.defaultDialog(
+            title: 'Perhatian',
+            middleText: response['message'],
+            textConfirm: 'OK',
+            onConfirm: () {
+              Get.back();
+              Get.to(() => const ClosingShiftPage());
+            },
+            confirmTextColor: Colors.white,
+          );
         } else {
           throw response['message'] ?? 'Gagal membuka shift';
         }
       }
     } catch (e) {
-      Get.snackbar('Error', e.toString());
+      Get.defaultDialog(
+        title: 'Error',
+        middleText: e.toString(),
+        textConfirm: 'OK',
+        onConfirm: () => Get.back(),
+        confirmTextColor: Colors.white,
+      );
     } finally {
       isLoading.value = false;
     }
@@ -136,7 +160,13 @@ class ShiftController extends GetxController {
     await getActiveShift(); // Ensure we have ID
 
     if (currentShiftId.value == null) {
-      Get.snackbar('Error', 'Tidak ada shift aktif ditemukan.');
+      Get.defaultDialog(
+        title: 'Error',
+        middleText: 'Tidak ada shift aktif ditemukan.',
+        textConfirm: 'OK',
+        onConfirm: () => Get.back(),
+        confirmTextColor: Colors.white,
+      );
       return;
     }
 
@@ -167,11 +197,23 @@ class ShiftController extends GetxController {
           totalSalesNonCash.value = totalQris.value + totalTransfer.value;
         }
       } else {
-        Get.snackbar('Error', response['message'] ?? 'Gagal memuat data closing');
+        Get.defaultDialog(
+          title: 'Error',
+          middleText: response['message'] ?? 'Gagal memuat data closing',
+          textConfirm: 'OK',
+          onConfirm: () => Get.back(),
+          confirmTextColor: Colors.white,
+        );
       }
     } catch (e) {
       print("Error loading closing data: $e");
-      Get.snackbar('Error', 'Gagal memuat data: $e');
+      Get.defaultDialog(
+        title: 'Error',
+        middleText: 'Gagal memuat data: $e',
+        textConfirm: 'OK',
+        onConfirm: () => Get.back(),
+        confirmTextColor: Colors.white,
+      );
     } finally {
       isLoading.value = false;
     }
@@ -179,7 +221,13 @@ class ShiftController extends GetxController {
 
   Future<void> closeShift({required int actualCash, required String notes}) async {
     if (currentShiftId.value == null) {
-      Get.snackbar('Error', 'ID Shift tidak ditemukan. Pastikan data shift termuat.');
+      Get.defaultDialog(
+        title: 'Error',
+        middleText: 'ID Shift tidak ditemukan. Pastikan data shift termuat.',
+        textConfirm: 'OK',
+        onConfirm: () => Get.back(),
+        confirmTextColor: Colors.white,
+      );
       return;
     }
 
@@ -192,13 +240,33 @@ class ShiftController extends GetxController {
       );
 
       if (response['status'] == true) {
-        Get.snackbar('Sukses', response['message'] ?? 'Shift berhasil ditutup');
-        Get.offAll(() => const OpenShiftPage());
+        Get.defaultDialog(
+          title: 'Sukses',
+          middleText: response['message'] ?? 'Shift berhasil ditutup',
+          textConfirm: 'OK',
+          onConfirm: () {
+            Get.back(); // Close dialog
+            Get.offAll(() => const OpenShiftPage());
+          },
+          confirmTextColor: Colors.white,
+        );
       } else {
-        Get.snackbar('Gagal', response['message'] ?? 'Gagal menutup shift');
+        Get.defaultDialog(
+          title: 'Gagal',
+          middleText: response['message'] ?? 'Gagal menutup shift',
+          textConfirm: 'OK',
+          onConfirm: () => Get.back(),
+          confirmTextColor: Colors.white,
+        );
       }
     } catch (e) {
-      Get.snackbar('Error', e.toString());
+      Get.defaultDialog(
+        title: 'Error',
+        middleText: e.toString(),
+        textConfirm: 'OK',
+        onConfirm: () => Get.back(),
+        confirmTextColor: Colors.white,
+      );
     } finally {
       isLoading.value = false;
     }
