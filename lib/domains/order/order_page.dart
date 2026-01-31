@@ -1,8 +1,9 @@
 import 'package:edifly_pos/core/utils/currency.dart';
 import 'package:edifly_pos/domains/auth/auth_controller.dart';
 import 'package:edifly_pos/domains/order/cart_item_controller.dart';
-import 'package:edifly_pos/domains/order/closing_order.dart';
+import 'package:edifly_pos/domains/printer/printer_settings_page.dart';
 import 'package:edifly_pos/domains/product/product_model.dart';
+import 'package:edifly_pos/domains/shift/closing_shift.dart';
 import 'package:edifly_pos/widgets/custom_network_image.dart';
 import 'package:edifly_pos/widgets/top_bar.dart';
 import 'package:flutter/material.dart';
@@ -14,7 +15,6 @@ class PosOrderPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cartController = Get.put(CartItemController());
-    print("test");
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6F8),
       body: Column(
@@ -36,8 +36,15 @@ class PosOrderPage extends StatelessWidget {
                   label: 'Tutup Pesanan',
                   icon: Icons.lock,
                   onTap: () {
-                    Get.to(() => const ReconciliationPage());
+                    Get.to(() => const ClosingShiftPage());
                     // Jalankan fungsi B (Contoh: Navigasi ke halaman rekonsiliasi)
+                  },
+                ),
+                TopBarMenuModel(
+                  label: 'Printer',
+                  icon: Icons.print,
+                  onTap: () {
+                    Get.to(() => const PrinterSettingsPage());
                   },
                 ),
                 TopBarMenuModel(
@@ -106,7 +113,7 @@ class PosOrderPage extends StatelessWidget {
                           label: Text(e),
                           backgroundColor:
                               cartController.selectedCategory.value == e
-                                  ? Colors.black
+                                  ? Colors.brown
                                   : Colors.grey,
                           labelStyle: const TextStyle(color: Colors.white),
                         ),
@@ -266,7 +273,7 @@ class PosOrderPage extends StatelessWidget {
                 children: [
                   /// CART ITEMS - Scrollable
                   Expanded(
-                    flex: 1,
+                    flex: 2,
                     child: ListView(
                       physics: const BouncingScrollPhysics(),
                       children:
@@ -377,20 +384,36 @@ class PosOrderPage extends StatelessWidget {
             );
           }),
 
-          SizedBox(
-            width: double.infinity,
-            height: 42,
-            child: ElevatedButton.icon(
-              onPressed: () {},
-              icon: const Icon(Icons.check_circle_outline, size: 18),
-              label: const Text('CHECK OUT', style: TextStyle(fontWeight: FontWeight.bold)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF5B3A1E),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          Obx(() {
+            final isValid = cartController.isValidCheckout;
+            return SizedBox(
+              width: double.infinity,
+              height: 42,
+              child: ElevatedButton.icon(
+                onPressed:
+                    isValid
+                        ? () {
+                          cartController.checkoutOrder();
+                        }
+                        : null,
+                icon: const Icon(Icons.check_circle_outline, size: 18),
+                label:
+                    cartController.isLoading.value
+                        ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                        )
+                        : const Text('CHECK OUT', style: TextStyle(fontWeight: FontWeight.bold)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isValid ? const Color(0xFF5B3A1E) : Colors.grey.shade400,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  elevation: isValid ? 2 : 0,
+                ),
               ),
-            ),
-          ),
+            );
+          }),
         ],
       ),
     );
@@ -407,9 +430,9 @@ class PosOrderPage extends StatelessWidget {
   }) {
     print("cartItem productID $id");
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.grey[150],
+        color: Colors.grey[200],
         borderRadius: BorderRadius.circular(8),
         boxShadow: [
           BoxShadow(
@@ -432,13 +455,13 @@ class PosOrderPage extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontSize: 14,
+                    fontSize: 11,
                     fontWeight: FontWeight.w600,
                     color: Colors.black,
                   ),
                 ),
                 const SizedBox(height: 2),
-                Text(price, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                Text(price, style: TextStyle(fontSize: 10, color: Colors.grey[600])),
               ],
             ),
           ),
@@ -462,10 +485,17 @@ class PosOrderPage extends StatelessWidget {
                 ),
               ),
               _qtyButton(icon: Icons.add, onTap: onAdd),
-              const SizedBox(width: 6),
+              const SizedBox(width: 8),
               GestureDetector(
                 onTap: onDelete,
-                child: const Icon(Icons.close, size: 18, color: Colors.red),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.red,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.grey.shade400),
+                  ),
+                  child: const Icon(Icons.close, size: 16, color: Colors.white),
+                ),
               ),
             ],
           ),
@@ -485,7 +515,7 @@ class PosOrderPage extends StatelessWidget {
           shape: BoxShape.circle,
           border: Border.all(color: Colors.grey.shade400),
         ),
-        child: Icon(icon, size: 16),
+        child: Icon(icon, size: 16, color: Colors.white),
       ),
     );
   }
@@ -507,7 +537,7 @@ class PosOrderPage extends StatelessWidget {
                 children: [
                   const Text('Nama Pemesan', style: TextStyle(fontSize: 11, color: Colors.black)),
                   const SizedBox(height: 4),
-                  _input('atas nama'),
+                  _input('atas nama', cartController.customerNameController),
                 ],
               ),
             ),
@@ -522,7 +552,7 @@ class PosOrderPage extends StatelessWidget {
                 children: [
                   const Text('No. Antrian', style: TextStyle(fontSize: 11, color: Colors.black)),
                   const SizedBox(height: 4),
-                  _input(''),
+                  _input('', cartController.queueNumberController),
                 ],
               ),
             ),
@@ -666,8 +696,9 @@ class PosOrderPage extends StatelessWidget {
     );
   }
 
-  Widget _input(String hint) {
+  Widget _input(String hint, TextEditingController controller) {
     return TextField(
+      controller: controller,
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: TextStyle(color: Colors.grey.shade600, fontSize: 13),

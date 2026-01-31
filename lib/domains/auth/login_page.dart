@@ -1,5 +1,6 @@
 import 'dart:ui';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -96,7 +97,7 @@ class _PosLoginPageState extends State<PosLoginPage> {
 
             const SizedBox(height: 14),
 
-            _demoInfo(),
+            if (kDebugMode) _demoInfo(),
           ],
         ),
       ),
@@ -154,7 +155,7 @@ class _PosLoginPageState extends State<PosLoginPage> {
       dropdownColor: const Color(0xFF3A2E23),
       style: const TextStyle(color: Colors.white),
       items:
-          const ['Bella Terra', 'Central Park', 'Mall Taman Anggrek']
+          const ['-', 'Bella Terra']
               .map(
                 (e) => DropdownMenuItem(
                   value: e,

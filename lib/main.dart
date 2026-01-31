@@ -1,7 +1,9 @@
+import 'package:edifly_pos/core/services/printer_service.dart';
 import 'package:edifly_pos/domains/auth/login_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:requests_inspector/requests_inspector.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,7 +17,10 @@ void main() async {
   /// Hide status bar (optional for kiosk/POS mode)
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
-  runApp(const PosApp());
+  /// Initialize PrinterService
+  Get.put(PrinterService());
+
+  runApp(const RequestsInspector(enabled: true, child: PosApp()));
 }
 
 class PosApp extends StatelessWidget {
@@ -32,7 +37,7 @@ class PosApp extends StatelessWidget {
         useMaterial3: false,
         brightness: Brightness.light,
         primaryColor: const Color(0xFF4A3728),
-        scaffoldBackgroundColor: Colors.black,
+        scaffoldBackgroundColor: Colors.white,
         fontFamily: 'Roboto',
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(

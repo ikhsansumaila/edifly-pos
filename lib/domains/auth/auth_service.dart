@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:edifly_pos/core/network/api_config.dart';
-import 'package:http/http.dart' as http;
+import 'package:edifly_pos/core/network/inspector_http_client.dart';
 
 class AuthService {
   static Future<Map<String, dynamic>> login({
@@ -10,7 +10,7 @@ class AuthService {
   }) async {
     final url = Uri.parse('$API_BASE_URL/auth/login');
 
-    final response = await http.post(
+    final response = await InspectorHttpClient.post(
       url,
       headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
       body: jsonEncode({'email': email, 'password': password}),
@@ -40,7 +40,7 @@ class AuthService {
   static Future<void> logout(String token) async {
     final url = Uri.parse('$API_BASE_URL/auth/logout');
 
-    final response = await http.post(
+    final response = await InspectorHttpClient.post(
       url,
       headers: {
         'Content-Type': 'application/json',

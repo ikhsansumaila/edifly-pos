@@ -1,18 +1,10 @@
 import 'dart:convert';
 
-import 'package:edifly_pos/core/network/api_config.dart';
-import 'package:edifly_pos/core/storage/auth_storage.dart';
-import 'package:http/http.dart' as http;
+import 'package:edifly_pos/core/network/api_client.dart';
 
 class ShiftService {
   static Future<Map<String, dynamic>> checkShiftStatus() async {
-    final token = await AuthStorage.getToken();
-    final url = Uri.parse('${API_BASE_URL}shift/status');
-
-    final response = await http.get(
-      url,
-      headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
-    );
+    final response = await ApiClient.get('/shift/status');
 
     return jsonDecode(response.body);
   }
@@ -21,13 +13,22 @@ class ShiftService {
     required int openingCash,
     required int shiftNumber,
   }) async {
-    final token = await AuthStorage.getToken();
-    final url = Uri.parse('${API_BASE_URL}shift/open');
+    final response = await ApiClient.post(
+      '/shift/open',
+      body: {'opening_cash': openingCash, 'shift_number': shiftNumber},
+    );
 
-    final response = await http.post(
-      url,
-      headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
-      body: jsonEncode({'opening_cash': openingCash, 'shift_number': shiftNumber}),
+    return jsonDecode(response.body);
+  }
+
+  static Future<Map<String, dynamic>> closeShift({
+    required int closingId,
+    required int actualCash,
+    String? notes,
+  }) async {
+    final response = await ApiClient.post(
+      '/shift/close',
+      body: {'closing_id': closingId, 'actual_cash': actualCash, 'notes': notes ?? ''},
     );
 
     return jsonDecode(response.body);
