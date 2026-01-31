@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:edifly_pos/core/utils/currency.dart';
 import 'package:edifly_pos/core/utils/terbilang.dart';
+import 'package:edifly_pos/domains/auth/auth_controller.dart';
 import 'package:edifly_pos/domains/order/order_page.dart';
 import 'package:edifly_pos/domains/shift/shift_controller.dart';
 import 'package:edifly_pos/widgets/top_bar.dart';
@@ -24,7 +25,7 @@ class _ClosingShiftPageState extends State<ClosingShiftPage> {
   @override
   void initState() {
     super.initState();
-    controller.getActiveShift();
+    controller.loadClosingData();
   }
 
   // Mock data sesuai gambar
@@ -75,33 +76,36 @@ class _ClosingShiftPageState extends State<ClosingShiftPage> {
   Widget _form() {
     return Column(
       children: [
-        TopBar(
-          menus: [
-            TopBarMenuModel(
-              label: 'Pesanan',
-              icon: Icons.receipt_long,
-              onTap: () {
-                Get.to(() => const PosOrderPage());
-                // Jalankan fungsi A
-              },
-            ),
-            TopBarMenuModel(label: 'Tutup Pesanan', icon: Icons.lock, onTap: () {}, isActive: true),
-            TopBarMenuModel(
-              label: 'Logout',
-              icon: Icons.exit_to_app,
-              onTap: () {
-                // Jalankan fungsi C (Contoh: Show Dialog Logout)
-                // _showLogoutDialog(context);
-              },
-            ),
-          ],
+        Obx(
+          () => TopBar(
+            userName: controller.userName.value,
+            menus: [
+              TopBarMenuModel(
+                label: 'Pesanan',
+                icon: Icons.receipt_long,
+                onTap: () {
+                  Get.to(() => const PosOrderPage());
+                },
+              ),
+              TopBarMenuModel(
+                label: 'Tutup Pesanan',
+                icon: Icons.lock,
+                onTap: () {},
+                isActive: true,
+              ),
+            ],
+            onLogout: () {
+              final authController = Get.put(AuthController());
+              authController.logout();
+            },
+          ),
         ),
 
         Obx(() {
           if (controller.isOldShift) {
             return Container(
               width: double.infinity,
-              color: const Color(0xFFE6ECEC), // Match background of content
+              color: const Color(0xFFE6ECEC),
               padding: const EdgeInsets.all(10),
               child: Container(
                 padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),

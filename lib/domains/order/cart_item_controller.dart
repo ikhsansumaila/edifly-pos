@@ -1,4 +1,5 @@
 import 'package:edifly_pos/core/storage/auth_storage.dart';
+import 'package:edifly_pos/domains/order/order_service.dart';
 import 'package:edifly_pos/domains/product/product_model.dart';
 import 'package:edifly_pos/domains/product/product_service.dart';
 import 'package:edifly_pos/domains/shift/closing_shift.dart';
@@ -12,7 +13,10 @@ import 'package:uuid/uuid.dart';
 class CartItemController extends GetxController {
   final cartItems = <String, ProductModel>{}.obs;
   final productList = <ProductModel>[].obs;
-  // final RxInt qty = 1.obs;
+
+  final isLoading = false.obs;
+  final isLoadingProduct = false.obs;
+
   final total = 0.obs;
 
   final cashAmount = 0.obs;
@@ -75,8 +79,6 @@ class CartItemController extends GetxController {
     selectedCategory.value = category;
   }
 
-  final isLoading = false.obs;
-
   @override
   void onInit() {
     Get.isRegistered<ShiftController>() ? Get.find<ShiftController>() : Get.put(ShiftController());
@@ -91,7 +93,7 @@ class CartItemController extends GetxController {
   }
 
   Future<void> loadProducts() async {
-    isLoading.value = true;
+    isLoadingProduct.value = true;
     try {
       final products = await _service.fetchProducts();
       productList.assignAll(products);
@@ -104,7 +106,7 @@ class CartItemController extends GetxController {
         colorText: Colors.white,
       );
     } finally {
-      isLoading.value = false;
+      isLoadingProduct.value = false;
     }
   }
 
@@ -252,22 +254,22 @@ class CartItemController extends GetxController {
 
       final uuid = const Uuid().v4();
 
-      // final checkoutResult = await OrderService.checkout(
-      //   clientUuid: uuid,
-      //   closingId: shiftController.currentShiftId.value!,
-      //   paymentMethod: selectedPayment.value,
-      //   sumber: selectedChannel.value,
-      //   subTotal: total.value,
-      //   totalBayar: total.value,
-      //   items: itemsList,
-      //   customerName:
-      //       customerNameController.text.isEmpty ? "Pelanggan" : customerNameController.text,
-      //   queueNumber: queueNumberController.text.isEmpty ? "-" : queueNumberController.text,
-      // );
+      final checkoutResult = await OrderService.checkout(
+        clientUuid: uuid,
+        closingId: shiftController.currentShiftId.value!,
+        paymentMethod: selectedPayment.value,
+        sumber: selectedChannel.value,
+        subTotal: total.value,
+        totalBayar: total.value,
+        items: itemsList,
+        customerName:
+            customerNameController.text.isEmpty ? "Pelanggan" : customerNameController.text,
+        queueNumber: queueNumberController.text.isEmpty ? "-" : queueNumberController.text,
+      );
 
-      // if (checkoutResult['status'] != true) {
-      //   throw checkoutResult['message'] ?? 'Checkout gagal';
-      // }
+      if (checkoutResult['status'] != true) {
+        throw checkoutResult['message'] ?? 'Checkout gagal';
+      }
 
       // Show Receipt Popup
       await Get.dialog(
@@ -290,7 +292,7 @@ class CartItemController extends GetxController {
       queueNumberController.clear();
       cashAmount.value = 0;
       // potentially navigate or show success dialog?
-      Get.snackbar('Sukses', 'Pesanan berhasil diproses');
+      // Get.snackbar('Sukses', 'Pesanan berhasil diproses');
     } catch (e) {
       Get.snackbar('Error', 'Checkout gagal: $e');
     } finally {

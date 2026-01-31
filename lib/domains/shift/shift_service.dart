@@ -33,4 +33,9 @@ class ShiftService {
 
     return jsonDecode(response.body);
   }
+
+  static Future<Map<String, dynamic>> getBeforeClosingSummary({required int closingId}) async {
+    final response = await ApiClient.get('/shift/before_closing?closing_id=$closingId');
+    return jsonDecode(response.body);
+  }
 }

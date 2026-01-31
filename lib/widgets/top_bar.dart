@@ -19,12 +19,14 @@ class TopBar extends StatelessWidget {
   final List<TopBarMenuModel> menus;
   final TextEditingController? searchController;
   final String userName;
+  final VoidCallback? onLogout;
 
   const TopBar({
     super.key,
     required this.menus, // List menu dikirim dari luar
     this.searchController,
     this.userName = '',
+    this.onLogout,
   });
 
   @override
@@ -62,10 +64,31 @@ class TopBar extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 10),
-                const CircleAvatar(
-                  radius: 16,
-                  backgroundColor: Colors.blueGrey,
-                  child: Icon(Icons.person, size: 18, color: Colors.white),
+                PopupMenuButton<String>(
+                  onSelected: (value) {
+                    if (value == 'logout' && onLogout != null) {
+                      onLogout!();
+                    }
+                  },
+                  offset: const Offset(0, 40),
+                  child: const CircleAvatar(
+                    radius: 16,
+                    backgroundColor: Colors.blueGrey,
+                    child: Icon(Icons.person, size: 18, color: Colors.white),
+                  ),
+                  itemBuilder:
+                      (context) => [
+                        const PopupMenuItem(
+                          value: 'logout',
+                          child: Row(
+                            children: [
+                              Icon(Icons.exit_to_app, color: Colors.red, size: 20),
+                              SizedBox(width: 8),
+                              Text('Logout', style: TextStyle(color: Colors.red)),
+                            ],
+                          ),
+                        ),
+                      ],
                 ),
               ],
             ),

@@ -26,10 +26,18 @@ class ShiftController extends GetxController {
   final totalSalesCash = 0.0.obs;
   final totalSalesNonCash = 0.0.obs;
 
+  // Detailed breakdown from before_closing
+  final totalQris = 0.0.obs;
+  final totalTransfer = 0.0.obs;
+  final expectedCashSystem = 0.0.obs;
+
   // User Input
   final userInputCash = 0.0.obs;
 
-  double get systemTotalCash => openingCashAmount.value + totalSalesCash.value;
+  double get systemTotalCash =>
+      expectedCashSystem.value > 0
+          ? expectedCashSystem.value
+          : (openingCashAmount.value + totalSalesCash.value);
 
   double get cashDifference => userInputCash.value - systemTotalCash;
 
@@ -100,39 +108,70 @@ class ShiftController extends GetxController {
       final response = await ShiftService.checkShiftStatus();
       if (response['status'] == true) {
         final data = response['data'];
-        if (data != null) {
-          // Assuming data contains id, date, shift_name based on previous context
-          // If not detailed, we might need to adjust.
-          // The previous code used 'opened_at'.
-          // If the backend returns 'id', we use it.
-          // If we can't get ID from status, we are in trouble for closing.
-          // Let's assume 'id' is present or 'shift_id'.
-          // Based on common practices:
+        if (data != null && data is Map) {
+          currentShiftId.value =
+              int.tryParse(data['id']?.toString() ?? '') ??
+              int.tryParse(data['shift_id']?.toString() ?? '');
 
-          if (data is Map) {
-            currentShiftId.value =
-                int.tryParse(data['id']?.toString() ?? '') ??
-                int.tryParse(data['shift_id']?.toString() ?? '');
+          // Dates
+          activeShiftDate.value = data['opened_at'] ?? DateTime.now().toString();
 
-            // Dates
-            activeShiftDate.value = data['opened_at'] ?? DateTime.now().toString();
+          // Shift Name/Number
+          final sNum = data['shift_number']?.toString() ?? '1';
+          activeShiftName.value = "Shift $sNum";
 
-            // Shift Name/Number
-            final sNum = data['shift_number']?.toString() ?? '1';
-            activeShiftName.value = "Shift $sNum";
-
-            // Financials
-            openingCashAmount.value =
-                double.tryParse(data['opening_cash']?.toString() ?? '0') ?? 0.0;
-            totalSalesCash.value =
-                double.tryParse(data['total_sales_cash']?.toString() ?? '0') ?? 0.0;
-            totalSalesNonCash.value =
-                double.tryParse(data['total_sales_non_cash']?.toString() ?? '0') ?? 0.0;
-          }
+          // If we are just checking status, we might not get full financial data yet
+          // unless we call before_closing.
+          // But let's populate what we can if available.
         }
       }
     } catch (e) {
       print("Error getting active shift: $e");
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  Future<void> loadClosingData() async {
+    await getActiveShift(); // Ensure we have ID
+
+    if (currentShiftId.value == null) {
+      Get.snackbar('Error', 'Tidak ada shift aktif ditemukan.');
+      return;
+    }
+
+    try {
+      isLoading.value = true;
+      final response = await ShiftService.getBeforeClosingSummary(closingId: currentShiftId.value!);
+
+      if (response['status'] == true) {
+        final data = response['data'];
+        if (data != null) {
+          // "opening_cash": 500000
+          openingCashAmount.value = double.tryParse(data['opening_cash']?.toString() ?? '0') ?? 0.0;
+
+          // "total_cash": 250000 (Sales Cash)
+          totalSalesCash.value = double.tryParse(data['total_cash']?.toString() ?? '0') ?? 0.0;
+
+          // "total_qris": 150000
+          totalQris.value = double.tryParse(data['total_qris']?.toString() ?? '0') ?? 0.0;
+
+          // "total_transfer": 100000
+          totalTransfer.value = double.tryParse(data['total_transfer']?.toString() ?? '0') ?? 0.0;
+
+          // "expected_cash": 750000
+          expectedCashSystem.value =
+              double.tryParse(data['expected_cash']?.toString() ?? '0') ?? 0.0;
+
+          // Non cash total
+          totalSalesNonCash.value = totalQris.value + totalTransfer.value;
+        }
+      } else {
+        Get.snackbar('Error', response['message'] ?? 'Gagal memuat data closing');
+      }
+    } catch (e) {
+      print("Error loading closing data: $e");
+      Get.snackbar('Error', 'Gagal memuat data: $e');
     } finally {
       isLoading.value = false;
     }

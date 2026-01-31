@@ -41,21 +41,17 @@ class PosOrderPage extends StatelessWidget {
                   },
                 ),
                 TopBarMenuModel(
-                  label: 'Printer',
+                  label: 'Atur Printer',
                   icon: Icons.print,
                   onTap: () {
                     Get.to(() => const PrinterSettingsPage());
                   },
                 ),
-                TopBarMenuModel(
-                  label: 'Logout',
-                  icon: Icons.exit_to_app,
-                  onTap: () {
-                    final authController = Get.put(AuthController());
-                    authController.logout();
-                  },
-                ),
               ],
+              onLogout: () {
+                final authController = Get.put(AuthController());
+                authController.logout();
+              },
             );
           }),
           // _topBar(),
@@ -130,7 +126,7 @@ class PosOrderPage extends StatelessWidget {
     final cartController = Get.find<CartItemController>();
 
     return Obx(() {
-      if (cartController.isLoading.value) {
+      if (cartController.isLoadingProduct.value) {
         return const Center(child: CircularProgressIndicator());
       }
       List<ProductModel> productList = cartController.filteredProductList;
