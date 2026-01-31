@@ -2,337 +2,436 @@ import 'dart:async';
 
 import 'package:edifly_pos/core/storage/auth_storage.dart';
 import 'package:edifly_pos/core/utils/currency.dart';
+import 'package:edifly_pos/core/utils/esc_pos_generator.dart';
 import 'package:edifly_pos/domains/product/product_model.dart';
-import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:print_bluetooth_thermal/print_bluetooth_thermal.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+/// Printer Type Enum
+enum PrinterType {
+  escPos, // ESC/POS for thermal receipt printers (QR-368BT, etc)
+  tspl, // TSPL for label printers (D520BT-Z, Phomemo, etc)
+}
+
+/// Bluetooth Printer Device Info
+class PrinterDevice {
+  final String name;
+  final String address;
+
+  PrinterDevice({required this.name, required this.address});
+}
 
 class PrinterService extends GetxController {
   static PrinterService get to => Get.find<PrinterService>();
 
+  // Native channel
+  static const _channel = MethodChannel('com.example.edifly_pos/printer');
+
   final isScanning = false.obs;
   final isConnected = false.obs;
   final isPrinting = false.obs;
-  final devices = <BluetoothInfo>[].obs;
-  final selectedDevice = Rxn<BluetoothInfo>();
+  final devices = <PrinterDevice>[].obs;
+  final selectedDevice = Rxn<PrinterDevice>();
 
-  /// Paper Size Config
-  final paperSize = PaperSize.mm58.obs;
+  /// Printer Type Config
+  final printerType = PrinterType.escPos.obs;
+  static const String _printerTypeKey = 'printer_type';
+
+  /// Paper Size Config (32 chars for 58mm, 48 for 80mm)
+  final paperWidth = 32.obs;
   static const String _paperSizeKey = 'printer_paper_size';
+  static const String _savedDeviceKey = 'saved_printer_address';
 
-  CapabilityProfile? _profile;
+  /// Label Size Config for TSPL (width x height in mm)
+  final labelWidth = 50.obs;
+  final labelHeight = 30.obs;
+  final isCustomLabelSize = false.obs; // Track if custom mode is active
+  static const String _labelWidthKey = 'label_width';
+  static const String _labelHeightKey = 'label_height';
 
   @override
   void onInit() {
     super.onInit();
     _loadPrinterSettings();
-    _loadProfile();
-  }
-
-  Future<void> _loadProfile() async {
-    try {
-      _profile = await CapabilityProfile.load();
-    } catch (e) {
-      print("Error loading printer profile: $e");
-    }
   }
 
   Future<void> _loadPrinterSettings() async {
     final prefs = await SharedPreferences.getInstance();
+
+    // Paper size
     final size = prefs.getInt(_paperSizeKey);
-    if (size == 80) {
-      paperSize.value = PaperSize.mm80;
-    } else {
-      paperSize.value = PaperSize.mm58;
+    paperWidth.value = (size == 80) ? 48 : 32;
+
+    // Printer type
+    final type = prefs.getString(_printerTypeKey);
+    printerType.value = (type == 'tspl') ? PrinterType.tspl : PrinterType.escPos;
+
+    // Label size
+    labelWidth.value = prefs.getInt(_labelWidthKey) ?? 50;
+    labelHeight.value = prefs.getInt(_labelHeightKey) ?? 30;
+
+    // Saved device
+    final savedAddress = prefs.getString(_savedDeviceKey);
+    if (savedAddress != null) {
+      // We'll try to reconnect when scanning
     }
   }
 
-  Future<void> setPaperSize(PaperSize size) async {
-    paperSize.value = size;
+  Future<void> setPaperSize(int mm) async {
+    paperWidth.value = (mm == 80) ? 48 : 32;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_paperSizeKey, size == PaperSize.mm80 ? 80 : 58);
+    await prefs.setInt(_paperSizeKey, mm);
   }
 
-  /// Request Bluetooth permissions
+  Future<void> setPrinterType(PrinterType type) async {
+    printerType.value = type;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_printerTypeKey, type == PrinterType.tspl ? 'tspl' : 'escpos');
+  }
+
+  Future<void> setLabelSize(int width, int height) async {
+    labelWidth.value = width;
+    labelHeight.value = height;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_labelWidthKey, width);
+    await prefs.setInt(_labelHeightKey, height);
+  }
+
+  /// Request permissions
   Future<bool> requestPermissions() async {
-    // print_bluetooth_thermal handles permissions largely, but we can double check
     final bluetoothConnect = await Permission.bluetoothConnect.request();
     final bluetoothScan = await Permission.bluetoothScan.request();
-    // Location is needed for some Android versions for scanning
-    final location = await Permission.locationWhenInUse.request();
 
-    return bluetoothConnect.isGranted && bluetoothScan.isGranted && location.isGranted;
+    return bluetoothConnect.isGranted && bluetoothScan.isGranted;
   }
 
-  /// Scan for paired Bluetooth devices
+  /// Scan for paired devices
   Future<void> scanDevices() async {
     isScanning.value = true;
     devices.clear();
 
-    // === SIMULATION MODE FOR EMULATOR/DEBUG ===
-    // if (kDebugMode) {
-    //   await Future.delayed(const Duration(seconds: 1)); // Fake scan delay
-    //   devices.add(BluetoothInfo(name: "Simulated Printer", macAdress: "00:00:00:00:00:00"));
-    //   isScanning.value = false;
-    //   return;
-    // }
-    // ==========================================
-
-    // Basic permission check
-    final bool permissionStatus = await PrintBluetoothThermal.isPermissionBluetoothGranted;
-    if (!permissionStatus) {
-      // Request if not granted
-      final granted = await requestPermissions();
-      if (!granted) {
-        Get.snackbar(
-          'Permission Denied',
-          'Bluetooth permissions are required to scan for printers',
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.red,
-          colorText: Colors.white,
-        );
-        isScanning.value = false;
-        return;
-      }
+    final granted = await requestPermissions();
+    if (!granted) {
+      Get.snackbar('Error', 'Bluetooth permissions required');
+      isScanning.value = false;
+      return;
     }
 
     try {
-      final List<BluetoothInfo> result = await PrintBluetoothThermal.pairedBluetooths;
-      devices.assignAll(result);
+      final List<dynamic> result = await _channel.invokeMethod('getPairedDevices');
+
+      debugPrint("=== PAIRED DEVICES (Native) ===");
+      for (var item in result) {
+        final map = Map<String, dynamic>.from(item);
+        debugPrint("${map['name']} - ${map['address']}");
+        devices.add(PrinterDevice(name: map['name'] ?? 'Unknown', address: map['address'] ?? ''));
+      }
+      debugPrint("=== END ===");
 
       if (devices.isEmpty) {
         Get.snackbar(
           'No Devices',
-          'No paired devices found. Please pair your printer in Android Settings first.',
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.orange,
-          colorText: Colors.white,
+          'Pasangkan printer dari Settings Bluetooth terlebih dahulu',
+          duration: const Duration(seconds: 5),
         );
       }
-    } catch (e) {
-      Get.snackbar(
-        'Error',
-        'Failed to scan: $e',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
+    } on PlatformException catch (e) {
+      debugPrint("Scan error: ${e.message}");
+      Get.snackbar('Error', 'Scan failed: ${e.message}');
     } finally {
       isScanning.value = false;
     }
   }
 
-  /// Connect to a selected Bluetooth device
-  Future<bool> connectToDevice(BluetoothInfo device) async {
-    isScanning.value = true; // Show loading state
-
-    // === SIMULATION MODE FOR EMULATOR/DEBUG ===
-    if (kDebugMode && device.macAdress == "00:00:00:00:00:00") {
-      await Future.delayed(const Duration(seconds: 1)); // Fake connect delay
-      selectedDevice.value = device;
-      isConnected.value = true;
-      isScanning.value = false;
-      Get.snackbar(
-        'Connected (Simulated)',
-        'Connected to ${device.name}',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.green,
-        colorText: Colors.white,
-      );
-      return true;
-    }
-    // ==========================================
+  /// Connect to device
+  Future<bool> connectToDevice(PrinterDevice device) async {
+    isScanning.value = true;
 
     try {
-      final bool result = await PrintBluetoothThermal.connect(macPrinterAddress: device.macAdress);
+      debugPrint("Connecting to ${device.name} (${device.address})...");
+
+      final bool result = await _channel.invokeMethod('connect', {'address': device.address});
+
       if (result) {
         selectedDevice.value = device;
         isConnected.value = true;
+
+        // Save for auto-reconnect
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(_savedDeviceKey, device.address);
+
         Get.snackbar(
           'Connected',
-          'Connected to ${device.name}',
-          snackPosition: SnackPosition.BOTTOM,
+          'Terhubung ke ${device.name}',
           backgroundColor: Colors.green,
           colorText: Colors.white,
         );
         return true;
       } else {
-        Get.snackbar(
-          'Connection Failed',
-          'Could not connect to ${device.name}',
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.red,
-          colorText: Colors.white,
-        );
+        Get.snackbar('Error', 'Gagal terhubung');
         return false;
       }
-    } catch (e) {
-      Get.snackbar(
-        'Error',
-        'Connection error: $e',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
+    } on PlatformException catch (e) {
+      debugPrint("Connection error: ${e.message}");
+      Get.snackbar('Error', 'Connection error: ${e.message}');
       return false;
     } finally {
       isScanning.value = false;
     }
   }
 
-  /// Disconnect from the current device
+  /// Disconnect
   Future<void> disconnect() async {
-    // === SIMULATION MODE ===
-    if (kDebugMode && selectedDevice.value?.macAdress == "00:00:00:00:00:00") {
-      isConnected.value = false;
-      selectedDevice.value = null;
-      return;
+    try {
+      await _channel.invokeMethod('disconnect');
+    } catch (e) {
+      debugPrint("Disconnect error: $e");
     }
-    // =======================
-
-    await PrintBluetoothThermal.disconnect;
     isConnected.value = false;
     selectedDevice.value = null;
   }
 
-  /// Test print using ESC/POS commands - similar to real receipt
+  /// Check connection status
+  Future<bool> checkConnection() async {
+    try {
+      final bool connected = await _channel.invokeMethod('isConnected');
+      isConnected.value = connected;
+      return connected;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Print raw bytes via native
+  Future<bool> _printBytes(List<int> bytes) async {
+    try {
+      final Uint8List data = Uint8List.fromList(bytes);
+      final bool result = await _channel.invokeMethod('printBytes', {'bytes': data});
+      return result;
+    } on PlatformException catch (e) {
+      debugPrint("Print error: ${e.message}");
+      return false;
+    }
+  }
+
+  /// Test print - uses selected printer type
   Future<bool> testPrint() async {
-    final connected = await PrintBluetoothThermal.connectionStatus;
+    final connected = await checkConnection();
     if (!connected) {
       Get.snackbar('Error', 'Printer tidak terhubung');
       return false;
     }
 
+    isPrinting.value = true;
+
     try {
-      // Ensure profile is loaded
-      if (_profile == null) {
-        await _loadProfile();
+      if (printerType.value == PrinterType.tspl) {
+        return await _testPrintTSPL();
+      } else {
+        return await _testPrintESCPOS();
       }
+    } catch (e) {
+      debugPrint("Test print error: $e");
+      Get.snackbar('Error', 'Test print error: $e');
+      return false;
+    } finally {
+      isPrinting.value = false;
+    }
+  }
 
-      print('paperSize.value ${paperSize.value}');
+  /// Test print with ESC/POS
+  Future<bool> _testPrintESCPOS() async {
+    try {
+      debugPrint("Testing ESC/POS print...");
 
-      final generator = Generator(PaperSize.mm58, _profile!);
-      List<int> bytes = [];
+      final bool result = await _channel.invokeMethod('printSimple', {
+        'text': 'TEST PRINT - ESC/POS\nHello World!\n\nPrinter berfungsi!',
+      });
 
-      // Reset printer
-      bytes += generator.reset();
+      debugPrint("ESC/POS print result: $result");
 
-      // Header
-      bytes += generator.text(
-        'TES PRINT',
-        styles: const PosStyles(
-          align: PosAlign.center,
-          height: PosTextSize.size2,
-          width: PosTextSize.size2,
-          bold: true,
-        ),
-      );
-      bytes += generator.feed(1);
+      if (result) {
+        Get.snackbar(
+          'Sukses',
+          'ESC/POS print berhasil!',
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
+        );
+      } else {
+        Get.snackbar('Error', 'ESC/POS print gagal');
+      }
+      return result;
+    } catch (e) {
+      debugPrint("ESC/POS print failed: $e");
+      Get.snackbar('Error', 'ESC/POS error: $e');
+      return false;
+    }
+  }
+
+  /// Test print with TSPL - full dummy receipt
+  Future<bool> _testPrintTSPL() async {
+    try {
+      debugPrint("Testing TSPL print with dummy receipt...");
+
+      final StringBuffer tspl = StringBuffer();
+      final width = labelWidth.value;
+      final height = labelHeight.value;
+
+      // Constants
+      final int lineHeight = 35;
+      final int smallLineHeight = 30;
+
+      // Calculate dynamic height for test content
+      int estimatedDots = 20;
+      estimatedDots += lineHeight + 8; // Header
+      estimatedDots += lineHeight; // Date
+      estimatedDots += 8; // Divider
+      estimatedDots += smallLineHeight * 4 + 4; // Info (4 lines)
+      estimatedDots += 8; // Divider
+      estimatedDots += (smallLineHeight + smallLineHeight + 2) * 3; // 3 Items
+      estimatedDots += 10; // Divider
+      estimatedDots += lineHeight + 4; // Total
+      estimatedDots += smallLineHeight * 3 + 8; // Payment info
+      estimatedDots += smallLineHeight * 2; // Footer text
+      estimatedDots += smallLineHeight; // TEST PRINT
+      estimatedDots += 40; // Padding bottom
+
+      final calculatedHeightMm = (estimatedDots / 8).ceil() + 10;
+      final finalHeight = calculatedHeightMm;
+
+      // TSPL setup
+      tspl.writeln('SIZE $width mm, $finalHeight mm');
+      tspl.writeln('GAP 0 mm, 0 mm'); // Continuous mode
+      tspl.writeln('DIRECTION 1');
+      tspl.writeln('CLS');
+
+      // Dummy data
+      final outletName = await AuthStorage.getNamaOutlet() ?? '';
+      final cashierName = await AuthStorage.getName() ?? '';
+      final customerName = 'Budi Santoso';
+      final queueNumber = '001';
+      final channel = 'Dine In';
+      final paymentMethod = 'Cash';
+
+      // Calculate positions
+      int y = 20; // Start lower
+      final int maxWidth = width * 8 - 20; // More right margin
+      final int leftMargin = 20; // More left margin
+
+      // ========== HEADER ==========
+      // Calculate dynamic center for Outlet Name (Font 3 approx 15 dots/char)
+      int nameWidth = outletName.length * 15;
+      int nameX = ((width * 8) - nameWidth) ~/ 2;
+      if (nameX < 0) nameX = 0;
+
+      tspl.writeln('TEXT $nameX, $y, "3", 0, 1, 1, "$outletName"');
+      y += lineHeight + 8;
 
       // Date & Time
       final now = DateTime.now();
-      bytes += generator.text(
-        '${now.day}/${now.month}/${now.year} ${now.hour}:${now.minute.toString().padLeft(2, '0')}',
-        styles: const PosStyles(align: PosAlign.center),
-      );
-      bytes += generator.feed(1);
-
-      // Customer info
-      bytes += generator.text('Customer: Pelanggan Test');
-      bytes += generator.text('No. Antrian: 001');
-      bytes += generator.text('Channel: Dine In');
-      bytes += generator.feed(1);
+      final dateStr =
+          '${now.day}/${now.month}/${now.year} ${now.hour}:${now.minute.toString().padLeft(2, '0')}';
+      tspl.writeln('TEXT ${maxWidth ~/ 2 - 90}, $y, "2", 0, 1, 1, "$dateStr"');
+      y += lineHeight;
 
       // Divider
-      bytes += generator.hr();
+      tspl.writeln('BAR $leftMargin, $y, $maxWidth, 2');
+      y += 8;
 
-      // Item 1
-      bytes += generator.text('Kopi Susu', styles: const PosStyles(bold: true));
-      bytes += generator.row([
-        PosColumn(text: '2 x Rp 15.000', width: 8),
-        PosColumn(text: 'Rp 30.000', width: 4, styles: const PosStyles(align: PosAlign.right)),
-      ]);
-
-      // Item 2
-      bytes += generator.text('Roti Bakar', styles: const PosStyles(bold: true));
-      bytes += generator.row([
-        PosColumn(text: '1 x Rp 20.000', width: 8),
-        PosColumn(text: 'Rp 20.000', width: 4, styles: const PosStyles(align: PosAlign.right)),
-      ]);
+      // ========== INFO ==========
+      tspl.writeln('TEXT $leftMargin, $y, "2", 0, 1, 1, "Kasir: $cashierName"');
+      y += smallLineHeight;
+      tspl.writeln('TEXT $leftMargin, $y, "2", 0, 1, 1, "Customer: $customerName"');
+      y += smallLineHeight;
+      tspl.writeln('TEXT $leftMargin, $y, "2", 0, 1, 1, "No. Antrian: $queueNumber"');
+      y += smallLineHeight;
+      tspl.writeln('TEXT $leftMargin, $y, "2", 0, 1, 1, "Channel: $channel"');
+      y += smallLineHeight + 4;
 
       // Divider
-      bytes += generator.hr();
+      tspl.writeln('BAR $leftMargin, $y, $maxWidth, 2');
+      y += 8;
 
-      // Total
-      bytes += generator.row([
-        PosColumn(
-          text: 'TOTAL',
-          width: 6,
-          styles: const PosStyles(height: PosTextSize.size2, width: PosTextSize.size2, bold: true),
-        ),
-        PosColumn(
-          text: 'Rp 50.000',
-          width: 6,
-          styles: const PosStyles(
-            height: PosTextSize.size2,
-            width: PosTextSize.size2,
-            bold: true,
-            align: PosAlign.right,
-          ),
-        ),
-      ]);
+      // ========== ITEMS ==========
+      // Item 1: Kopi Susu
+      tspl.writeln('TEXT $leftMargin, $y, "2", 0, 1, 1, "Kopi Susu"');
+      y += smallLineHeight;
+      tspl.writeln('TEXT $leftMargin, $y, "1", 0, 1, 1, "2 x Rp 15.000"');
+      tspl.writeln('TEXT ${maxWidth - 100}, $y, "1", 0, 1, 1, "Rp 30.000"'); // Shifted left
+      y += smallLineHeight + 2;
 
-      bytes += generator.feed(1);
-      bytes += generator.text('Pembayaran: Cash');
-      bytes += generator.feed(2);
+      // Item 2: Roti Bakar
+      tspl.writeln('TEXT $leftMargin, $y, "2", 0, 1, 1, "Roti Bakar Coklat"');
+      y += smallLineHeight;
+      tspl.writeln('TEXT $leftMargin, $y, "1", 0, 1, 1, "1 x Rp 20.000"');
+      tspl.writeln('TEXT ${maxWidth - 100}, $y, "1", 0, 1, 1, "Rp 20.000"'); // Shifted left
+      y += smallLineHeight + 2;
 
-      // Footer
-      bytes += generator.text(
-        'Terima Kasih',
-        styles: const PosStyles(align: PosAlign.center, bold: true),
-      );
-      bytes += generator.text(
-        '=== TES BERHASIL ===',
-        styles: const PosStyles(align: PosAlign.center),
-      );
+      // Item 3: Es Teh
+      tspl.writeln('TEXT $leftMargin, $y, "2", 0, 1, 1, "Es Teh Manis"');
+      y += smallLineHeight;
+      tspl.writeln('TEXT $leftMargin, $y, "1", 0, 1, 1, "1 x Rp 15.000"');
+      tspl.writeln('TEXT ${maxWidth - 100}, $y, "1", 0, 1, 1, "Rp 15.000"'); // Shifted left
+      y += smallLineHeight + 4;
 
-      bytes += generator.feed(3);
+      // Divider
+      tspl.writeln('BAR $leftMargin, $y, $maxWidth, 2');
+      y += 10;
 
-      // Debug
-      print("Test print bytes length: ${bytes.length}");
+      // ========== TOTAL ==========
+      tspl.writeln('TEXT $leftMargin, $y, "3", 0, 1, 1, "TOTAL"');
+      tspl.writeln('TEXT ${maxWidth - 120}, $y, "3", 0, 1, 1, "Rp 65.000"'); // Shifted left
+      y += lineHeight + 4;
+
+      tspl.writeln('TEXT $leftMargin, $y, "2", 0, 1, 1, "Pembayaran: $paymentMethod"');
+      y += smallLineHeight;
+
+      tspl.writeln('TEXT $leftMargin, $y, "1", 0, 1, 1, "Tunai"');
+      tspl.writeln('TEXT ${maxWidth - 100}, $y, "1", 0, 1, 1, "Rp 100.000"'); // Shifted left
+      y += smallLineHeight;
+
+      tspl.writeln('TEXT $leftMargin, $y, "1", 0, 1, 1, "Kembalian"');
+      tspl.writeln('TEXT ${maxWidth - 100}, $y, "1", 0, 1, 1, "Rp 35.000"'); // Shifted left
+      y += smallLineHeight + 8;
+
+      // ========== FOOTER ==========
+      tspl.writeln('TEXT ${maxWidth ~/ 2 - 60}, $y, "2", 0, 1, 1, "Terima Kasih"');
+      y += smallLineHeight;
+      tspl.writeln('TEXT ${maxWidth ~/ 2 - 80}, $y, "1", 0, 1, 1, "Selamat Menikmati!"');
+      y += smallLineHeight;
+      tspl.writeln('TEXT ${maxWidth ~/ 2 - 80}, $y, "1", 0, 1, 1, "=== TEST PRINT ==="');
 
       // Print
-      // final result = await PrintBluetoothThermal.writeBytes(bytes);
-      // final result = await PrintBluetoothThermal.writeString(
-      //   printText: PrintTextSize(
-      //     size: 2,
-      //     text: "=== TES PRINT ===\n\nJika Anda melihat ini,\nprinter berfungsi!\n\n\n",
-      //   ),
-      // );// WAJIB
-      await Future.delayed(const Duration(milliseconds: 1000));
+      tspl.writeln('PRINT 1');
+      tspl.writeln('FORMFEED'); // Stop paper
+      tspl.writeln('EOP');
 
-      List<int> bytess = [
-        27, 64, // INIT
-        66, 69, 69, 80, 82, // "BEEPR"
-        84, // "T"
-        10, // newline
-        10,
-      ];
+      final bool result = await _channel.invokeMethod('printTSPL', {
+        'text': tspl.toString(),
+        'width': width,
+        'height': height,
+        'raw': true,
+      });
 
-      final result = await PrintBluetoothThermal.writeBytes(bytess);
+      debugPrint("TSPL print result: $result");
+
       if (result) {
-        Get.snackbar('Sukses', 'Test print berhasil');
+        Get.snackbar(
+          'Sukses',
+          'Test print berhasil!',
+          backgroundColor: Colors.blue,
+          colorText: Colors.white,
+        );
       } else {
         Get.snackbar('Error', 'Test print gagal');
       }
       return result;
     } catch (e) {
-      print("Test print error: $e");
-      Get.snackbar('Error', 'Test print error: $e');
+      debugPrint("TSPL print failed: $e");
+      Get.snackbar('Error', 'TSPL error: $e');
       return false;
     }
   }
@@ -347,207 +446,357 @@ class PrinterService extends GetxController {
     required String channel,
     int? cashAmount,
   }) async {
-    print("kDebugMode $kDebugMode");
-    // === SIMULATION MODE CHECK ===
-    // if (kDebugMode) {
-    //   // Simulate printing
-    //   isPrinting.value = true;
-    //   await Future.delayed(const Duration(seconds: 2)); // Fake print delay
-    //   isPrinting.value = false;
-    //   Get.snackbar(
-    //     'Success (Simulated)',
-    //     'Receipt printed successfully (Mock)',
-    //     snackPosition: SnackPosition.BOTTOM,
-    //     backgroundColor: Colors.green,
-    //     colorText: Colors.white,
-    //   );
-    //   return true;
-    // }
-    // =============================
-
-    final connected = await PrintBluetoothThermal.connectionStatus;
+    final connected = await checkConnection();
     if (!connected) {
-      // Try to reconnect if we have a selected device
       if (selectedDevice.value != null) {
         final reconnected = await connectToDevice(selectedDevice.value!);
         if (!reconnected) return false;
       } else {
-        Get.snackbar(
-          'Printer Not Connected',
-          'Please connect to a printer first',
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.orange,
-          colorText: Colors.white,
-        );
+        Get.snackbar('Error', 'Printer tidak terhubung');
         return false;
       }
     }
 
     isPrinting.value = true;
 
-    print("start Print");
     try {
-      // Ensure profile is loaded
-      if (_profile == null) {
-        await _loadProfile();
+      if (printerType.value == PrinterType.tspl) {
+        return await _printReceiptTSPL(
+          cartItems: cartItems,
+          total: total,
+          customerName: customerName,
+          queueNumber: queueNumber,
+          paymentMethod: paymentMethod,
+          channel: channel,
+          cashAmount: cashAmount,
+        );
+      } else {
+        return await _printReceiptESCPOS(
+          cartItems: cartItems,
+          total: total,
+          customerName: customerName,
+          queueNumber: queueNumber,
+          paymentMethod: paymentMethod,
+          channel: channel,
+          cashAmount: cashAmount,
+        );
       }
+    } catch (e) {
+      debugPrint("Print error: $e");
+      Get.snackbar('Error', 'Print error: $e');
+      return false;
+    } finally {
+      isPrinting.value = false;
+    }
+  }
 
-      final generator = Generator(paperSize.value, _profile!);
-      List<int> bytes = [];
+  /// Print receipt with ESC/POS
+  Future<bool> _printReceiptESCPOS({
+    required List<ProductModel> cartItems,
+    required int total,
+    required String customerName,
+    required String queueNumber,
+    required String paymentMethod,
+    required String channel,
+    int? cashAmount,
+  }) async {
+    final gen = EscPosGenerator(paperWidth: paperWidth.value);
+    gen.init();
 
-      // Reset printer
-      bytes += generator.reset();
+    // Header
+    final outletName = await AuthStorage.getNamaOutlet() ?? '';
+    gen.text(
+      outletName,
+      bold: true,
+      doubleHeight: true,
+      doubleWidth: true,
+      align: TextAlign.center,
+    );
+    gen.feed(1);
 
-      final outletName = await AuthStorage.getNamaOutlet() ?? '';
-      // Header
-      bytes += generator.text(
-        outletName,
-        styles: const PosStyles(
-          align: PosAlign.center,
-          height: PosTextSize.size2,
-          width: PosTextSize.size2,
-          bold: true,
-        ),
+    // Date & Time
+    final now = DateTime.now();
+    gen.text(
+      '${now.day}/${now.month}/${now.year} ${now.hour}:${now.minute.toString().padLeft(2, '0')}',
+      align: TextAlign.center,
+    );
+    gen.feed(1);
+
+    // Customer info
+    if (customerName.isNotEmpty) {
+      gen.text('Customer: $customerName');
+    }
+    if (queueNumber.isNotEmpty) {
+      gen.text('No. Antrian: $queueNumber');
+    }
+    gen.text('Channel: $channel');
+    gen.feed(1);
+
+    gen.hr();
+
+    // Items
+    for (final item in cartItems) {
+      gen.text(item.namaProduct, bold: true);
+      gen.row('${item.qty} x ${formatRupiah(item.harga)}', formatRupiah(item.harga * item.qty));
+    }
+
+    gen.hr();
+
+    // Total
+    gen.text('TOTAL', bold: true, doubleHeight: true);
+    gen.text(formatRupiah(total), bold: true, doubleHeight: true, align: TextAlign.right);
+    gen.feed(1);
+
+    // Payment info
+    gen.text('Pembayaran: $paymentMethod');
+
+    if (cashAmount != null && cashAmount > 0) {
+      gen.row('Tunai', formatRupiah(cashAmount));
+      final change = cashAmount - total;
+      if (change > 0) {
+        gen.row('Kembalian', formatRupiah(change));
+      }
+    }
+
+    gen.feed(2);
+
+    // Footer
+    gen.text('Terima Kasih', bold: true, align: TextAlign.center);
+    gen.text('Selamat Menikmati!', align: TextAlign.center);
+    gen.feed(4);
+
+    debugPrint("Receipt ESC/POS: ${gen.bytes.length} bytes");
+
+    final result = await _printBytes(gen.bytes);
+
+    if (result) {
+      Get.snackbar(
+        'Success',
+        'Receipt printed',
+        backgroundColor: Colors.green,
+        colorText: Colors.white,
       );
-      bytes += generator.feed(1);
+      return true;
+    } else {
+      Get.snackbar('Error', 'Print failed');
+      return false;
+    }
+  }
 
-      // Date & Time
-      final now = DateTime.now();
-      bytes += generator.text(
-        '${now.day}/${now.month}/${now.year} ${now.hour}:${now.minute.toString().padLeft(2, '0')}',
-        styles: const PosStyles(align: PosAlign.center),
-      );
-      bytes += generator.feed(1);
+  /// Print receipt with TSPL (for label printers)
+  Future<bool> _printReceiptTSPL({
+    required List<ProductModel> cartItems,
+    required int total,
+    required String customerName,
+    required String queueNumber,
+    required String paymentMethod,
+    required String channel,
+    int? cashAmount,
+  }) async {
+    // Build TSPL command string
+    final StringBuffer tspl = StringBuffer();
 
-      // Customer info
-      if (customerName.isNotEmpty) {
-        bytes += generator.text('Customer: $customerName');
+    final width = labelWidth.value;
+    final height = labelHeight.value;
+
+    // Get outlet name and cashier
+    final outletName = await AuthStorage.getNamaOutlet() ?? '';
+    final cashierName = await AuthStorage.getName() ?? '-';
+
+    // Constants
+    final int lineHeight = 35;
+    final int smallLineHeight = 30;
+
+    // 1. Hitung estimasi tinggi konten (dalam dots)
+    int estimatedDots = 20; // Initial Y
+
+    // Header section
+    estimatedDots += lineHeight + 8; // Outlet name
+    estimatedDots += lineHeight; // Date
+    estimatedDots += 8; // Divider
+
+    // Info section
+    estimatedDots += smallLineHeight; // Kasir
+    if (customerName.isNotEmpty) estimatedDots += smallLineHeight;
+    if (queueNumber.isNotEmpty && queueNumber != '-') estimatedDots += smallLineHeight;
+    estimatedDots += smallLineHeight + 4; // Channel
+    estimatedDots += 8; // Divider
+
+    // Items section
+    for (int i = 0; i < cartItems.length; i++) {
+      estimatedDots += smallLineHeight; // Name
+      estimatedDots += smallLineHeight + 2; // Qty & Price
+    }
+    estimatedDots += 10; // Divider
+
+    // Total section
+    estimatedDots += lineHeight + 4; // Total label & value
+    estimatedDots += smallLineHeight; // Payment method
+    if (cashAmount != null && cashAmount > 0) {
+      estimatedDots += smallLineHeight; // Cash
+      final change = cashAmount - total;
+      if (change > 0) estimatedDots += smallLineHeight; // Change
+    }
+    estimatedDots += 8; // Padding
+
+    // Footer section
+    estimatedDots += smallLineHeight; // Terima kasih
+    estimatedDots += smallLineHeight; // Selamat menikmati
+    estimatedDots += 40; // Extra padding bottom
+
+    // Convert dots to mm (8 dots = 1 mm) + buffer
+    final calculatedHeightMm = (estimatedDots / 8).ceil() + 10;
+
+    // Use dynamic height if in custom/continuous mode, otherwise use fixed label height
+    // But since user asked for dynamic height based on content, we prioritize calculated height
+    // especially if it's longer than default setting.
+    final finalHeight = calculatedHeightMm;
+
+    // TSPL setup
+    tspl.writeln('SIZE $width mm, $finalHeight mm');
+    tspl.writeln('GAP 0 mm, 0 mm'); // Continuous mode
+    tspl.writeln('DIRECTION 1');
+    tspl.writeln('CLS');
+
+    // Calculate positions (dots, 8 dots = 1mm approximately)
+    int y = 20; // Start lower
+    final int maxWidth = width * 8 - 20; // More right margin
+    final int leftMargin = 20; // More left margin
+
+    // ========== HEADER ==========
+    // Outlet name (centered, bold - font 3)
+    // Dynamic Center: (PaperWidth - TextWidth) / 2
+    int nameWidth = outletName.length * 15;
+    int nameX = ((width * 8) - nameWidth) ~/ 2;
+    if (nameX < 0) nameX = 0;
+    tspl.writeln('TEXT $nameX, $y, "3", 0, 1, 1, "$outletName"');
+    y += lineHeight + 8;
+
+    // Date & Time (centered, small - font 2)
+    final now = DateTime.now();
+    final dateStr =
+        '${now.day}/${now.month}/${now.year} ${now.hour}:${now.minute.toString().padLeft(2, '0')}';
+    tspl.writeln('TEXT ${maxWidth ~/ 2 - 90}, $y, "2", 0, 1, 1, "$dateStr"');
+    y += lineHeight;
+
+    // Divider line
+    tspl.writeln('BAR $leftMargin, $y, $maxWidth, 2');
+    y += 8;
+
+    // ========== INFO SECTION ==========
+    // Kasir
+    tspl.writeln('TEXT $leftMargin, $y, "2", 0, 1, 1, "Kasir: $cashierName"');
+    y += smallLineHeight;
+
+    // Customer
+    if (customerName.isNotEmpty) {
+      tspl.writeln('TEXT $leftMargin, $y, "2", 0, 1, 1, "Customer: $customerName"');
+      y += smallLineHeight;
+    }
+
+    // Queue number
+    if (queueNumber.isNotEmpty && queueNumber != '-') {
+      tspl.writeln('TEXT $leftMargin, $y, "2", 0, 1, 1, "No. Antrian: $queueNumber"');
+      y += smallLineHeight;
+    }
+
+    // Channel
+    tspl.writeln('TEXT $leftMargin, $y, "2", 0, 1, 1, "Channel: $channel"');
+    y += smallLineHeight + 4;
+
+    // Divider line
+    tspl.writeln('BAR $leftMargin, $y, $maxWidth, 2');
+    y += 8;
+
+    // ========== ITEMS ==========
+    for (int i = 0; i < cartItems.length && y < height * 8 - 100; i++) {
+      final item = cartItems[i];
+      final subtotal = item.harga * item.qty;
+
+      // Product name (bold)
+      tspl.writeln('TEXT $leftMargin, $y, "2", 0, 1, 1, "${item.namaProduct}"');
+      y += smallLineHeight;
+
+      // Quantity x Price = Subtotal
+      final qtyPrice = '${item.qty} x ${formatRupiah(item.harga)}';
+      final subtotalStr = formatRupiah(subtotal);
+      tspl.writeln('TEXT $leftMargin, $y, "1", 0, 1, 1, "$qtyPrice"');
+      tspl.writeln('TEXT ${maxWidth - 100}, $y, "1", 0, 1, 1, "$subtotalStr"'); // Shifted left
+      y += smallLineHeight + 2;
+    }
+
+    // Divider line
+    tspl.writeln('BAR $leftMargin, $y, $maxWidth, 2');
+    y += 10;
+
+    // ========== TOTAL ==========
+    tspl.writeln('TEXT $leftMargin, $y, "3", 0, 1, 1, "TOTAL"');
+    tspl.writeln(
+      'TEXT ${maxWidth - 120}, $y, "3", 0, 1, 1, "${formatRupiah(total)}"',
+    ); // Shifted left
+    y += lineHeight + 4;
+
+    // Payment method
+    tspl.writeln('TEXT $leftMargin, $y, "2", 0, 1, 1, "Pembayaran: $paymentMethod"');
+    y += smallLineHeight;
+
+    // Cash & Change
+    if (cashAmount != null && cashAmount > 0) {
+      tspl.writeln('TEXT $leftMargin, $y, "1", 0, 1, 1, "Tunai"');
+      tspl.writeln(
+        'TEXT ${maxWidth - 100}, $y, "1", 0, 1, 1, "${formatRupiah(cashAmount)}"',
+      ); // Shifted left
+      y += smallLineHeight;
+
+      final change = cashAmount - total;
+      if (change > 0) {
+        tspl.writeln('TEXT $leftMargin, $y, "1", 0, 1, 1, "Kembalian"');
+        tspl.writeln(
+          'TEXT ${maxWidth - 100}, $y, "1", 0, 1, 1, "${formatRupiah(change)}"',
+        ); // Shifted left
+        y += smallLineHeight;
       }
-      if (queueNumber.isNotEmpty) {
-        bytes += generator.text('No. Antrian: $queueNumber');
-      }
-      bytes += generator.text('Channel: $channel');
-      bytes += generator.feed(1);
+    }
 
-      // Divider
-      bytes += generator.hr();
+    y += 8;
 
-      // Items
-      for (final item in cartItems) {
-        bytes += generator.text(item.namaProduct, styles: const PosStyles(bold: true));
-        bytes += generator.row([
-          PosColumn(text: '${item.qty} x ${formatRupiah(item.harga)}', width: 8),
-          PosColumn(
-            text: formatRupiah(item.harga * item.qty),
-            width: 4,
-            styles: const PosStyles(align: PosAlign.right),
-          ),
-        ]);
-      }
+    // ========== FOOTER ==========
+    tspl.writeln('TEXT ${maxWidth ~/ 2 - 60}, $y, "2", 0, 1, 1, "Terima Kasih"');
+    y += smallLineHeight;
+    tspl.writeln('TEXT ${maxWidth ~/ 2 - 80}, $y, "1", 0, 1, 1, "Selamat Menikmati!"');
 
-      // Divider
-      bytes += generator.hr();
+    // Print command
+    tspl.writeln('PRINT 1');
+    tspl.writeln('FORMFEED'); // Stop paper
+    tspl.writeln('EOP');
 
-      // Total
-      bytes += generator.row([
-        PosColumn(
-          text: 'TOTAL',
-          width: 6,
-          styles: const PosStyles(height: PosTextSize.size2, width: PosTextSize.size2, bold: true),
-        ),
-        PosColumn(
-          text: formatRupiah(total),
-          width: 6,
-          styles: const PosStyles(
-            height: PosTextSize.size2,
-            width: PosTextSize.size2,
-            bold: true,
-            align: PosAlign.right,
-          ),
-        ),
-      ]);
+    print("finalHeight: $finalHeight, height: $height, lineHeight: $lineHeight");
 
-      bytes += generator.feed(1);
-
-      // Payment info
-      bytes += generator.text('Pembayaran: $paymentMethod');
-
-      if (cashAmount != null && cashAmount > 0) {
-        bytes += generator.row([
-          PosColumn(text: 'Tunai', width: 6),
-          PosColumn(
-            text: formatRupiah(cashAmount),
-            width: 6,
-            styles: const PosStyles(align: PosAlign.right),
-          ),
-        ]);
-
-        final change = cashAmount - total;
-        if (change > 0) {
-          bytes += generator.row([
-            PosColumn(text: 'Kembalian', width: 6),
-            PosColumn(
-              text: formatRupiah(change),
-              width: 6,
-              styles: const PosStyles(align: PosAlign.right),
-            ),
-          ]);
-        }
-      }
-
-      bytes += generator.feed(2);
-
-      // Footer
-      bytes += generator.text(
-        'Terima Kasih',
-        styles: const PosStyles(align: PosAlign.center, bold: true),
-      );
-      bytes += generator.text(
-        'Selamat Menikmati!',
-        styles: const PosStyles(align: PosAlign.center),
-      );
-
-      bytes += generator.feed(3);
-
-      // Debug: Log bytes length
-      print("Bytes length: ${bytes.length}");
-
-      // Print - pass as List<int> (not Uint8List!)
-      final result = await PrintBluetoothThermal.writeBytes(bytes);
+    // Send TSPL command
+    try {
+      final bool result = await _channel.invokeMethod('printTSPL', {
+        'text': tspl.toString(),
+        'width': width,
+        'height': height,
+        'raw': true,
+      });
 
       if (result) {
-        print("success print");
         Get.snackbar(
           'Success',
-          'Receipt printed successfully',
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.green,
+          'Struk berhasil dicetak',
+          backgroundColor: Colors.blue,
           colorText: Colors.white,
         );
         return true;
       } else {
-        print("error print snackbar");
-        Get.snackbar(
-          'Print Error',
-          'Failed to print receipt',
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.red,
-          colorText: Colors.white,
-        );
+        Get.snackbar('Error', 'Cetak struk gagal');
         return false;
       }
     } catch (e) {
-      print("error print $e");
-      Get.snackbar(
-        'Print Error',
-        'Failed to print: $e',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
+      debugPrint("TSPL print error: $e");
+      Get.snackbar('Error', 'TSPL error: $e');
       return false;
-    } finally {
-      isPrinting.value = false;
     }
   }
 }

@@ -86,7 +86,7 @@ class CartItemController extends GetxController {
   }
 
   Future<void> loadUser() async {
-    userName.value = await AuthStorage.getName() ?? '';
+    userName.value = await AuthStorage.getName() ?? '-';
     outletName.value = await AuthStorage.getNamaOutlet() ?? '';
   }
 
