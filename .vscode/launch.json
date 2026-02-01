@@ -2,24 +2,21 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "edifly_pos",
+            "name": "edifly_pos (debug mode)",
             "request": "launch",
-            "type": "dart",
-            "deviceId": "emulator-5554"
+            "type": "dart"
         },
         {
             "name": "edifly_pos (profile mode)",
             "request": "launch",
             "type": "dart",
-            "flutterMode": "profile",
-            "deviceId": "emulator-5554"
+            "flutterMode": "profile"
         },
         {
             "name": "edifly_pos (release mode)",
             "request": "launch",
             "type": "dart",
-            "flutterMode": "release",
-            "deviceId": "emulator-5554"
+            "flutterMode": "release"
         }
     ]
 }
