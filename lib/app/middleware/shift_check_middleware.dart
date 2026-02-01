@@ -1,3 +1,4 @@
+import 'package:edifly_pos/app/routes/app_routes.dart';
 import 'package:edifly_pos/domains/shift/closing_shift.dart';
 import 'package:edifly_pos/domains/shift/shift_controller.dart';
 import 'package:edifly_pos/domains/shift/shift_service.dart';
@@ -46,6 +47,8 @@ class ShiftCheckMiddleware extends GetMiddleware {
               );
             }
           }
+        } else if (response['status'] == false && response['data'] == null) {
+          Get.offAllNamed(Routes.openingShift);
         }
       } catch (e) {
         // Silent error or log

@@ -1,5 +1,6 @@
 import 'dart:ui';
 
+import 'package:edifly_pos/app/routes/app_routes.dart';
 import 'package:edifly_pos/core/utils/currency.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -229,7 +230,7 @@ class OpenShiftPage extends StatelessWidget {
                                 const SizedBox(height: 16),
                                 Center(
                                   child: TextButton(
-                                    onPressed: () => Get.back(),
+                                    onPressed: () => Get.offAllNamed(Routes.login),
                                     child: Text(
                                       'BATAL',
                                       style: TextStyle(
