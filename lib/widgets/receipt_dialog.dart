@@ -1,3 +1,4 @@
+import 'package:edifly_pos/app/routes/app_routes.dart';
 import 'package:edifly_pos/core/services/printer_service.dart';
 import 'package:edifly_pos/core/utils/currency.dart';
 import 'package:edifly_pos/domains/product/product_model.dart';
@@ -136,7 +137,52 @@ class ReceiptDialog extends StatelessWidget {
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: () async {
-                  await Get.find<PrinterService>().printReceipt(
+                  final printerService = Get.find<PrinterService>();
+
+                  // Check if printer is connected
+                  final isConnected = await printerService.checkConnection();
+
+                  if (!isConnected) {
+                    // Show error dialog with option to go to printer settings
+                    Get.dialog(
+                      AlertDialog(
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        title: Row(
+                          children: [
+                            Icon(Icons.error_outline, color: Colors.red, size: 28),
+                            const SizedBox(width: 8),
+                            const Text('Printer Tidak Terhubung'),
+                          ],
+                        ),
+                        content: const Text(
+                          'Printer belum terhubung. Silakan hubungkan printer terlebih dahulu untuk mencetak struk.',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Get.back(), // Close error dialog only
+                            child: const Text('Batal'),
+                          ),
+                          ElevatedButton.icon(
+                            onPressed: () {
+                              Get.back(); // Close error dialog
+                              Get.toNamed(Routes.printSettings); // Go to printer settings
+                            },
+                            icon: const Icon(Icons.settings),
+                            label: const Text('Atur Printer'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF5B3A1E),
+                              foregroundColor: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                      barrierDismissible: true,
+                    );
+                    return;
+                  }
+
+                  // Printer is connected, proceed to print
+                  await printerService.printReceipt(
                     orderItems: orderItems,
                     total: total,
                     customerName: customerName,

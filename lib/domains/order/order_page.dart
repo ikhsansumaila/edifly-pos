@@ -110,11 +110,11 @@ class PosOrderPage extends StatelessWidget {
         onChanged: (val) => orderProcessController.searchProduct(val),
         decoration: InputDecoration(
           hintText: 'Cari menu...',
-          hintStyle: TextStyle(fontSize: 10, color: Colors.grey),
+          hintStyle: TextStyle(fontSize: 11, color: Colors.grey),
           prefixIcon: Icon(Icons.search, size: 18, color: Colors.grey),
           border: InputBorder.none,
         ),
-        style: TextStyle(fontSize: 10),
+        style: TextStyle(fontSize: 11),
       ),
     );
   }
@@ -177,68 +177,7 @@ class PosOrderPage extends StatelessWidget {
   }
 
   Widget _menuCard({required ProductModel product}) {
-    final orderProcessController = Get.find<OrderProcessController>();
-    return GestureDetector(
-      onTap: () => orderProcessController.increment(product.id),
-      child: Card(
-        color: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                padding: const EdgeInsets.fromLTRB(8, 0, 8, 15),
-                child: Stack(
-                  children: [
-                    Center(child: CustomNetworkImage(imageUrl: product.fotoUrl, fit: BoxFit.cover)),
-                    Positioned(
-                      top: 0,
-                      right: 0,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.deepOrange,
-                          borderRadius: BorderRadius.circular(5),
-                        ),
-                        child: Text(
-                          formatRupiah(product.harga),
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            // const SizedBox(height: 8),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              child: Text(
-                product.namaProduct,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 10,
-                  color: Colors.grey,
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
-              child: Text(product.categoryName, style: TextStyle(fontSize: 10, color: Colors.grey)),
-            ),
-          ],
-        ),
-      ),
-    );
+    return _AnimatedMenuCard(product: product);
   }
 
   // ================= CART SECTION =================
@@ -263,9 +202,16 @@ class PosOrderPage extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.delete_outline, color: Colors.red, size: 11),
+                    Icon(Icons.delete_rounded, color: Colors.red, size: 14),
                     const SizedBox(width: 4),
-                    Text('HAPUS SEMUA', style: TextStyle(color: Colors.red, fontSize: 9)),
+                    Text(
+                      'HAPUS SEMUA',
+                      style: TextStyle(
+                        color: Colors.red,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -274,83 +220,82 @@ class PosOrderPage extends StatelessWidget {
 
           const SizedBox(height: 12),
 
-          /// SCROLL AREA
+          /// SCROLL AREA - Cart Items + Checkout Form in one scroll
           Expanded(
             child: Obx(() {
               final items = orderProcessController.orderItems.values.toList();
 
-              /// ===== EMPTY STATE =====
-              if (items.isEmpty) {
-                return SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.shopping_cart_outlined, size: 96, color: Colors.black26),
-                      SizedBox(height: 12),
-                      Text(
-                        'Belum ada pesanan',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.black45,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Divider(height: 1, thickness: 1, color: Colors.black12),
-                      const SizedBox(height: 12),
-
-                      /// CHECKOUT FORM
-                      _checkoutForm(),
-                    ],
-                  ),
-                );
-              }
-
-              return Column(
-                children: [
-                  /// CART ITEMS - Scrollable
-                  Expanded(
-                    flex: 2,
-                    child: ListView(
-                      physics: const BouncingScrollPhysics(),
-                      children:
-                          items
-                              .map(
-                                (e) => Container(
-                                  margin: const EdgeInsets.only(bottom: 8),
-                                  child: _cartItem(
-                                    title: e.namaProduct,
-                                    price: '${formatRupiah(e.harga)} x ${e.qty}',
-                                    totalPrice: formatRupiah(
-                                      (e.harga * e.qty * (1 - (e.discount / 100))).toInt(),
+              return SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    /// ===== EMPTY STATE or CART ITEMS =====
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(minHeight: 100),
+                      child:
+                          items.isEmpty
+                              ? Center(
+                                child: Column(
+                                  children: [
+                                    Icon(
+                                      Icons.shopping_cart_outlined,
+                                      size: 96,
+                                      color: Colors.black26,
                                     ),
-                                    qty: e.qty,
-                                    discount: e.discount,
-                                    onDiscountChanged:
-                                        (val) => orderProcessController.updateDiscount(e.id, val),
-                                    onAdd: () => orderProcessController.increment(e.id),
-                                    onRemove: () => orderProcessController.decrement(e.id),
-                                    onDelete: () => orderProcessController.remove(e.id),
-                                  ),
+                                    SizedBox(height: 12),
+                                    Text(
+                                      'Belum ada pesanan',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: Colors.black45,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               )
-                              .toList(),
+                              : Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children:
+                                    items
+                                        .map(
+                                          (e) => Container(
+                                            margin: const EdgeInsets.only(bottom: 8),
+                                            child: _cartItem(
+                                              title: e.namaProduct,
+                                              price: '${formatRupiah(e.harga)} x ${e.qty}',
+                                              totalPrice: formatRupiah(
+                                                (e.harga * e.qty * (1 - (e.discount / 100)))
+                                                    .toInt(),
+                                              ),
+                                              qty: e.qty,
+                                              discount: e.discount,
+                                              onDiscountChanged:
+                                                  (val) => orderProcessController.updateDiscount(
+                                                    e.id,
+                                                    val,
+                                                  ),
+                                              onAdd: () => orderProcessController.increment(e.id),
+                                              onRemove:
+                                                  () => orderProcessController.decrement(e.id),
+                                              onDelete: () => orderProcessController.remove(e.id),
+                                            ),
+                                          ),
+                                        )
+                                        .toList(),
+                              ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  Divider(height: 1, thickness: 1, color: Colors.black12),
-                  const SizedBox(height: 12),
 
-                  /// CHECKOUT FORM - Scrollable
-                  Expanded(
-                    flex: 2,
-                    child: SingleChildScrollView(
-                      physics: const BouncingScrollPhysics(),
-                      child: _checkoutForm(),
-                    ),
-                  ),
-                ],
+                    const SizedBox(height: 12),
+                    Divider(height: 1, thickness: 1, color: Colors.black12),
+                    const SizedBox(height: 12),
+
+                    /// CHECKOUT FORM
+                    _checkoutForm(),
+                  ],
+                ),
               );
             }),
           ),
@@ -373,30 +318,7 @@ class PosOrderPage extends StatelessWidget {
 
             // Jika input 0 atau belum diisi, tampilkan Kembalian Rp 0
             if (cashInput == 0) {
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Kembalian',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    Text(
-                      formatRupiah(0),
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              );
+              return SizedBox.shrink();
             }
 
             final selisih = cashInput - total;
@@ -496,14 +418,14 @@ class PosOrderPage extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontSize: 9,
+                    fontSize: 11,
                     fontWeight: FontWeight.w600,
                     color: Colors.black,
                   ),
                 ),
                 const SizedBox(height: 2),
-                Text(price, style: TextStyle(fontSize: 8, color: Colors.grey[600])),
-                Text(totalPrice, style: TextStyle(fontSize: 9, color: Colors.black)),
+                Text(price, style: TextStyle(fontSize: 9, color: Colors.grey[600])),
+                Text(totalPrice, style: TextStyle(fontSize: 11, color: Colors.black)),
               ],
             ),
           ),
@@ -542,10 +464,9 @@ class PosOrderPage extends StatelessWidget {
                       },
                     ),
                   ),
-                  // Text('disc%', style: TextStyle(fontSize: 9, color: Colors.grey)),
                 ],
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 10),
 
               _qtyButton(icon: Icons.remove, onTap: onRemove),
               Padding(
@@ -553,7 +474,7 @@ class PosOrderPage extends StatelessWidget {
                 child: Text(
                   qty.toString(),
                   style: const TextStyle(
-                    fontSize: 9,
+                    fontSize: 11,
                     fontWeight: FontWeight.w600,
                     color: Colors.black,
                   ),
@@ -583,14 +504,14 @@ class PosOrderPage extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 15,
-        height: 15,
+        width: 24,
+        height: 24,
         decoration: BoxDecoration(
           color: const Color.fromARGB(255, 247, 247, 247),
           shape: BoxShape.circle,
           border: Border.all(color: Colors.grey.shade400),
         ),
-        child: Icon(icon, size: 10, color: Colors.black),
+        child: Icon(icon, size: 16, color: Colors.black),
       ),
     );
   }
@@ -640,15 +561,15 @@ class PosOrderPage extends StatelessWidget {
 
         /// CHANNEL
         Wrap(
-          spacing: 6,
-          runSpacing: 6,
+          spacing: 8,
+          runSpacing: 8,
           children: [
             _badge('OFFLINE', Colors.brown),
             _badge('GO', Colors.lightGreen),
             _badge('GRAB', Colors.green.shade800),
             _badge('SHOPEE', Colors.orange.shade600),
-            // _badge('INSTAGRAM', Colors.deepPurple),
-            // _badge('WHATSAPP', Colors.lightGreen),
+            _badge('INSTAGRAM', Colors.deepPurple),
+            _badge('WHATSAPP', Colors.lightGreen),
           ],
         ),
 
@@ -800,7 +721,7 @@ class PosOrderPage extends StatelessWidget {
       return InkWell(
         onTap: () => orderProcessController.selectPaymentChannel(label),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
           decoration: BoxDecoration(
             color: isSelected ? color : color.withAlpha(150),
             borderRadius: BorderRadius.circular(8),
@@ -808,16 +729,134 @@ class PosOrderPage extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (isSelected) const Icon(Icons.check, size: 12, color: Colors.white),
+              if (isSelected) const Icon(Icons.check, size: 14, color: Colors.white),
               if (isSelected) const SizedBox(width: 4),
               Text(
                 label,
-                style: TextStyle(fontSize: 9, color: Colors.white, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.bold),
               ),
             ],
           ),
         ),
       );
     });
+  }
+}
+
+/// Animated Menu Card with scale animation on tap
+class _AnimatedMenuCard extends StatefulWidget {
+  final ProductModel product;
+
+  const _AnimatedMenuCard({required this.product});
+
+  @override
+  State<_AnimatedMenuCard> createState() => _AnimatedMenuCardState();
+}
+
+class _AnimatedMenuCardState extends State<_AnimatedMenuCard> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(duration: const Duration(milliseconds: 200), vsync: this);
+
+    // Bounce: 1.0 -> 1.05 -> 0.97 -> 1.0 (pop effect)
+    _scaleAnimation = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.05), weight: 40),
+      TweenSequenceItem(tween: Tween(begin: 1.05, end: 0.97), weight: 30),
+      TweenSequenceItem(tween: Tween(begin: 0.97, end: 1.0), weight: 30),
+    ]).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _onTap() {
+    // Play bounce animation
+    _controller.forward(from: 0);
+
+    // Add to cart
+    final orderProcessController = Get.find<OrderProcessController>();
+    orderProcessController.increment(widget.product.id);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: _onTap,
+      child: ScaleTransition(
+        scale: _scaleAnimation,
+        child: Card(
+          color: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  padding: const EdgeInsets.fromLTRB(8, 0, 8, 15),
+                  child: Stack(
+                    children: [
+                      Center(
+                        child: CustomNetworkImage(
+                          imageUrl: widget.product.fotoUrl,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                      Positioned(
+                        top: 0,
+                        right: 0,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.deepOrange,
+                            borderRadius: BorderRadius.circular(5),
+                          ),
+                          child: Text(
+                            formatRupiah(widget.product.harga),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                child: Text(
+                  widget.product.namaProduct,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 11,
+                    color: Colors.grey,
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+                child: Text(
+                  widget.product.categoryName,
+                  style: const TextStyle(fontSize: 11, color: Colors.grey),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

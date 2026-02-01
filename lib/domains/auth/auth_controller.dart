@@ -92,10 +92,10 @@ class AuthController extends GetxController {
     try {
       isLoading.value = true;
 
-      final savedToken = await AuthStorage.getToken();
-      if (savedToken != null && savedToken.isNotEmpty) {
-        await AuthService.logout(savedToken);
-      }
+      // final savedToken = await AuthStorage.getToken();
+      // if (savedToken != null && savedToken.isNotEmpty) {
+      //   await AuthService.logout(savedToken);
+      // }
 
       // Clear local storage
       await AuthStorage.clearAuth();

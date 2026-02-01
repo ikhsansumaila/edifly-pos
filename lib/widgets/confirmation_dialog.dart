@@ -25,70 +25,76 @@ class ConfirmationDialog extends StatelessWidget {
       child: Container(
         width: 350,
         padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Icon
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.blueGrey.shade200, width: 3),
-              ),
-              child: Center(
-                child: Icon(Icons.question_mark_rounded, size: 40, color: Colors.blueGrey.shade400),
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Title
-            const Text(
-              'Konfirmasi Pesanan',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black87),
-            ),
-            const SizedBox(height: 16),
-
-            // Content
-            Text("Sumber Pesanan: $source", style: _textStyle()),
-            const SizedBox(height: 4),
-            Text("Total: ${formatRupiah(total)}", style: _textStyle(isBold: true)),
-            const SizedBox(height: 4),
-            Text("Metode: $method", style: _textStyle()),
-
-            const SizedBox(height: 32),
-
-            // Buttons
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                ElevatedButton(
-                  onPressed: onConfirm,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF5B3A1E), // Brown color
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                  child: const Text(
-                    'Proses Sekarang',
-                    style: TextStyle(fontWeight: FontWeight.bold),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Icon
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.blueGrey.shade200, width: 3),
+                ),
+                child: Center(
+                  child: Icon(
+                    Icons.question_mark_rounded,
+                    size: 40,
+                    color: Colors.blueGrey.shade400,
                   ),
                 ),
-                const SizedBox(width: 16),
-                ElevatedButton(
-                  onPressed: onCancel,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blueGrey.shade400, // Grey color
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              const SizedBox(height: 24),
+
+              // Title
+              const Text(
+                'Konfirmasi Pesanan',
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black87),
+              ),
+              const SizedBox(height: 16),
+
+              // Content
+              Text("Sumber Pesanan: $source", style: _textStyle()),
+              const SizedBox(height: 4),
+              Text("Total: ${formatRupiah(total)}", style: _textStyle(isBold: true)),
+              const SizedBox(height: 4),
+              Text("Metode: $method", style: _textStyle()),
+
+              const SizedBox(height: 32),
+
+              // Buttons
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ElevatedButton(
+                    onPressed: onConfirm,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF5B3A1E), // Brown color
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    child: const Text(
+                      'Proses Sekarang',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
                   ),
-                  child: const Text('Cancel', style: TextStyle(fontWeight: FontWeight.bold)),
-                ),
-              ],
-            ),
-          ],
+                  const SizedBox(width: 16),
+                  ElevatedButton(
+                    onPressed: onCancel,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blueGrey.shade400, // Grey color
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    child: const Text('Cancel', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
