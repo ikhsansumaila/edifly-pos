@@ -8,6 +8,7 @@ class AuthStorage {
   static const String _nameKey = 'name';
   static const String _namaOutletKey = 'nama_outlet';
   static const String _emailKey = 'email';
+  static const String _addressKey = 'address';
 
   static Future<void> saveAuth({
     required String token,
@@ -17,6 +18,7 @@ class AuthStorage {
     required String name,
     required String namaOutlet,
     required String email,
+    String? address,
   }) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_tokenKey, token);
@@ -26,6 +28,9 @@ class AuthStorage {
     await prefs.setString(_nameKey, name);
     await prefs.setString(_namaOutletKey, namaOutlet);
     await prefs.setString(_emailKey, email);
+    if (address != null) {
+      await prefs.setString(_addressKey, address);
+    }
   }
 
   static Future<String?> getToken() async {
@@ -41,6 +46,11 @@ class AuthStorage {
   static Future<String?> getNamaOutlet() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_namaOutletKey);
+  }
+
+  static Future<String?> getAddress() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_addressKey);
   }
 
   static Future<void> clearAuth() async {

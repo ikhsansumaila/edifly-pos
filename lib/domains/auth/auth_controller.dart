@@ -57,6 +57,7 @@ class AuthController extends GetxController {
 
       final String name = data['name'] ?? '';
       final String namaOutlet = data['nama_outlet'] ?? '';
+      final String address = data['address'] ?? data['alamat'] ?? '';
 
       // Get.snackbar('Sukses', 'Login berhasil');
 
@@ -69,6 +70,7 @@ class AuthController extends GetxController {
         name: name,
         namaOutlet: namaOutlet,
         email: email.value,
+        address: address,
       );
 
       // Redirect directly to Order Page
@@ -92,10 +94,10 @@ class AuthController extends GetxController {
     try {
       isLoading.value = true;
 
-      // final savedToken = await AuthStorage.getToken();
-      // if (savedToken != null && savedToken.isNotEmpty) {
-      //   await AuthService.logout(savedToken);
-      // }
+      final savedToken = await AuthStorage.getToken();
+      if (savedToken != null && savedToken.isNotEmpty) {
+        await AuthService.logout(savedToken);
+      }
 
       // Clear local storage
       await AuthStorage.clearAuth();

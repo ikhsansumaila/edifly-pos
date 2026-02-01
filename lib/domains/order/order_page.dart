@@ -678,6 +678,7 @@ class PosOrderPage extends StatelessWidget {
                       RupiahInput(
                         fontSize: 10,
                         hint: 'Masukkan nominal',
+                        controller: orderProcessController.cashAmountController,
                         onChanged: (val) {
                           // print("Nilai int: $val");
                           orderProcessController.cashAmount.value = val;

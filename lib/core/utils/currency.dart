@@ -33,15 +33,23 @@ class RupiahInputFormatter extends TextInputFormatter {
 }
 
 class RupiahInput extends StatelessWidget {
-  const RupiahInput({super.key, required this.hint, required this.onChanged, this.fontSize = 13});
+  const RupiahInput({
+    super.key,
+    required this.hint,
+    required this.onChanged,
+    this.fontSize = 13,
+    this.controller,
+  });
 
   final String hint;
   final void Function(int) onChanged;
   final double fontSize;
+  final TextEditingController? controller;
 
   @override
   Widget build(BuildContext context) {
     return TextField(
+      controller: controller,
       keyboardType: TextInputType.number,
       inputFormatters: [RupiahInputFormatter()],
       decoration: InputDecoration(
@@ -49,14 +57,18 @@ class RupiahInput extends StatelessWidget {
         hintStyle: TextStyle(color: Colors.grey.shade600, fontSize: fontSize),
         isDense: true,
         filled: true,
-        fillColor: Colors.grey.shade200,
+        fillColor: Colors.white,
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide.none,
+          borderRadius: BorderRadius.circular(6),
+          borderSide: BorderSide(
+            color: Colors.grey.shade400, // warna border ketika enable
+            width: 0.8,
+          ),
         ),
       ),
-      style: const TextStyle(color: Colors.black),
+      textAlign: TextAlign.right,
+      style: TextStyle(fontSize: fontSize, color: Colors.black),
       onChanged: (val) {
         // hapus Rp dan titik
         String numericString = val.replaceAll(RegExp(r'[^0-9]'), '');

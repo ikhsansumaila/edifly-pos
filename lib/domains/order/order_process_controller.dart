@@ -21,6 +21,7 @@ class OrderProcessController extends GetxController {
   final cashAmount = 0.obs;
   final userName = ''.obs;
   final outletName = ''.obs;
+  final outletAddress = ''.obs;
 
   final ProductService _service = Get.find();
 
@@ -34,6 +35,7 @@ class OrderProcessController extends GetxController {
 
   final customerNameController = TextEditingController();
   final queueNumberController = TextEditingController();
+  final cashAmountController = TextEditingController();
 
   bool get isOffline => selectedChannel.value == 'OFFLINE';
 
@@ -104,6 +106,7 @@ class OrderProcessController extends GetxController {
   Future<void> loadUser() async {
     userName.value = await AuthStorage.getName() ?? '-';
     outletName.value = await AuthStorage.getNamaOutlet() ?? '';
+    outletAddress.value = await AuthStorage.getAddress() ?? '';
   }
 
   void _showErrorDialog(String message, {String title = 'Error'}) {
@@ -194,10 +197,14 @@ class OrderProcessController extends GetxController {
   void onClose() {
     customerNameController.dispose();
     queueNumberController.dispose();
+    cashAmountController.dispose();
     super.onClose();
   }
 
   void checkoutOrder() {
+    // Hide keyboard
+    FocusManager.instance.primaryFocus?.unfocus();
+
     if (orderItems.isEmpty) {
       _showErrorDialog('Keranjang kosong, silahkan pilih produk terlebih dahulu', title: '');
       return;
@@ -274,9 +281,13 @@ class OrderProcessController extends GetxController {
         queueNumber: queueNumberController.text.isEmpty ? "-" : queueNumberController.text,
       );
 
-      if (checkoutResult['status'] != true) {
-        throw checkoutResult['message'] ?? 'Checkout gagal';
+      if (!checkoutResult.status) {
+        throw checkoutResult.message;
       }
+
+      debugPrint("Checkout Result: ${checkoutResult.status}");
+      debugPrint("Order No: ${checkoutResult.data?.orderNo}");
+      debugPrint("Print URL: ${checkoutResult.printUrl}");
 
       // Show Receipt Popup
       await Get.dialog(
@@ -290,6 +301,9 @@ class OrderProcessController extends GetxController {
           cashAmount: cashAmount.value,
           cashierName: userName.value,
           outletName: outletName.value,
+          outletAddress: outletAddress.value,
+          printUrl: checkoutResult.printUrl,
+          orderNo: checkoutResult.data?.orderNo,
         ),
       );
 
@@ -297,6 +311,7 @@ class OrderProcessController extends GetxController {
       removeAll();
       customerNameController.clear();
       queueNumberController.clear();
+      cashAmountController.clear();
       cashAmount.value = 0;
     } catch (e) {
       _showErrorDialog('Checkout gagal: $e');

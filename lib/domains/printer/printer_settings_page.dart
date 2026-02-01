@@ -63,37 +63,45 @@ class _PrinterSettingsPageState extends State<PrinterSettingsPage> {
             ),
 
             // TAB 2: TIPE PRINTER & UKURAN
-            SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildPrinterTypeSelection(printerService),
-                  const SizedBox(height: 24),
-                  // Conditional Settings based on printer type
-                  Obx(() {
-                    if (printerService.printerType.value == PrinterType.escPos) {
-                      return _buildPaperSizeSettings(printerService);
-                    } else {
-                      return _buildLabelSizeSettings(printerService);
-                    }
-                  }),
-                  const SizedBox(height: 8),
-                  Obx(
-                    () => Text(
-                      'Mode Aktif: ${printerService.printerType.value == PrinterType.tspl ? "TSPL (Label)" : "ESC/POS (Receipt)"}',
-                      style: TextStyle(
-                        color:
-                            printerService.printerType.value == PrinterType.tspl
-                                ? Colors.blue.shade600
-                                : Colors.green.shade600,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
+            Column(
+              children: [
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildPrinterTypeSelection(printerService),
+                        const SizedBox(height: 24),
+                        // Conditional Settings based on printer type
+                        Obx(() {
+                          if (printerService.printerType.value == PrinterType.escPos) {
+                            return _buildPaperSizeSettings(printerService);
+                          } else {
+                            return _buildLabelSizeSettings(printerService);
+                          }
+                        }),
+                        const SizedBox(height: 8),
+                        Obx(
+                          () => Text(
+                            'Mode Aktif: ${printerService.printerType.value == PrinterType.tspl ? "TSPL (Label)" : "ESC/POS (Receipt)"}',
+                            style: TextStyle(
+                              color:
+                                  printerService.printerType.value == PrinterType.tspl
+                                      ? Colors.blue.shade600
+                                      : Colors.green.shade600,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
-              ),
+                ),
+                // Test Print Button - Stay at bottom
+                _buildTestPrintButton(printerService),
+              ],
             ),
           ],
         ),
@@ -137,23 +145,60 @@ class _PrinterSettingsPageState extends State<PrinterSettingsPage> {
               ),
             ),
             if (isConnected)
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextButton(
-                    onPressed: () => printerService.testPrint(),
-                    child: const Text('Test Print', style: TextStyle(color: Color(0xFF5B3A1E))),
-                  ),
-                  TextButton(
-                    onPressed: () => printerService.disconnect(),
-                    child: const Text('Putus', style: TextStyle(color: Colors.red)),
-                  ),
-                ],
+              TextButton(
+                onPressed: () => printerService.disconnect(),
+                child: const Text('Putus', style: TextStyle(color: Colors.red)),
               ),
           ],
         ),
       );
     });
+  }
+
+  /// Test Print Button - Stay at bottom of Settings tab
+  Widget _buildTestPrintButton(PrinterService printerService) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 4,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: Obx(() {
+        final isConnected = printerService.isConnected.value;
+        final isPrinting = printerService.isPrinting.value;
+
+        return SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: isConnected && !isPrinting ? () => printerService.testPrint() : null,
+            icon:
+                isPrinting
+                    ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                    : const Icon(Icons.print),
+            label: Text(
+              isPrinting ? 'Mencetak...' : 'TEST PRINT',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: isConnected ? const Color(0xFF5B3A1E) : Colors.grey,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          ),
+        );
+      }),
+    );
   }
 
   Widget _buildScanButton(PrinterService printerService) {
@@ -256,29 +301,36 @@ class _PrinterSettingsPageState extends State<PrinterSettingsPage> {
     return Card(
       color: Colors.grey.shade100,
       margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        leading: Icon(
-          isPaired ? Icons.bluetooth_connected : Icons.bluetooth,
-          color: const Color(0xFF5B3A1E),
-        ),
-        title: Text(device.name),
-        subtitle: Text(device.address),
-        trailing: Obx(() {
-          final selected = printerService.selectedDevice.value;
-          final isSelected = selected?.address == device.address;
+      child: Obx(() {
+        final selected = printerService.selectedDevice.value;
+        final isSelected = selected?.address == device.address;
+        final isConnecting = printerService.isScanning.value;
 
-          return Row(
+        return ListTile(
+          leading: Icon(
+            isPaired ? Icons.bluetooth_connected : Icons.bluetooth,
+            color: const Color(0xFF5B3A1E),
+          ),
+          title: Text(device.name),
+          subtitle: Text(device.address),
+          trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (isSelected)
+              if (isSelected && printerService.isConnected.value)
                 const Icon(Icons.check_circle, color: Colors.green)
+              else if (isConnecting)
+                const SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF5B3A1E)),
+                )
               else
                 TextButton(
                   onPressed: () => printerService.connectToDevice(device),
                   child: const Text('Hubungkan'),
                 ),
 
-              if (isPaired)
+              if (isPaired && !isConnecting)
                 IconButton(
                   icon: const Icon(Icons.delete, color: Colors.red),
                   onPressed: () {
@@ -296,10 +348,10 @@ class _PrinterSettingsPageState extends State<PrinterSettingsPage> {
                   },
                 ),
             ],
-          );
-        }),
-        onTap: () => printerService.connectToDevice(device),
-      ),
+          ),
+          onTap: isConnecting ? null : () => printerService.connectToDevice(device),
+        );
+      }),
     );
   }
 

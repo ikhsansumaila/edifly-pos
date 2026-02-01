@@ -126,6 +126,25 @@ class EscPosGenerator {
     _buffer.addAll(_cmdBoldOff);
   }
 
+  /// Add a row with 4 columns
+  /// Widths are percentages/ratios of total paper width
+  /// Default: col1 (4/10), col2 (1/10), col3 (2/10), col4 (3/10)
+  void row4(String col1, String col2, String col3, String col4) {
+    int w1 = (paperWidth * 0.45).floor(); // Item
+    int w2 = (paperWidth * 0.10).floor(); // Qty
+    int w3 = (paperWidth * 0.20).floor(); // Disc
+    int w4 = paperWidth - w1 - w2 - w3; // Total (remainder)
+
+    // Truncate or pad
+    String c1 = col1.length > w1 ? col1.substring(0, w1) : col1.padRight(w1);
+    String c2 = col2.length > w2 ? col2.substring(0, w2) : col2.padLeft(w2);
+    String c3 = col3.length > w3 ? col3.substring(0, w3) : col3.padLeft(w3);
+    String c4 = col4.length > w4 ? col4.substring(0, w4) : col4.padLeft(w4);
+
+    _buffer.addAll(_encodeText('$c1$c2$c3$c4'));
+    _buffer.addAll(_cmdLF);
+  }
+
   /// Cut paper (if printer supports it)
   void cut({bool partial = false}) {
     feed(3); // Feed before cut
@@ -150,6 +169,54 @@ class EscPosGenerator {
       // Fallback to ASCII if Latin-1 fails
       return safeText.codeUnits.map((c) => c > 127 ? 63 : c).toList(); // Replace non-ASCII with '?'
     }
+  }
+
+  /// Print QR Code
+  /// [content] Text to encode
+  /// [size] Module size (1-16)
+  void qrcode(String content, {int size = 5, TextAlign align = TextAlign.center}) {
+    // Alignment
+    switch (align) {
+      case TextAlign.center:
+        _buffer.addAll(_cmdAlignCenter);
+        break;
+      case TextAlign.right:
+        _buffer.addAll(_cmdAlignRight);
+        break;
+      default:
+        _buffer.addAll(_cmdAlignLeft);
+        break;
+    }
+
+    // QR Code commands
+
+    // 1. Model: Model 2
+    // GS ( k 04 00 31 41 n1 n2 -> 1D 28 6B 04 00 31 41 32 00
+    _buffer.addAll([0x1d, 0x28, 0x6b, 0x04, 0x00, 0x31, 0x41, 0x32, 0x00]);
+
+    // 2. Module size
+    // GS ( k 03 00 31 43 n -> 1D 28 6B 03 00 31 43 n
+    _buffer.addAll([0x1d, 0x28, 0x6b, 0x03, 0x00, 0x31, 0x43, size]);
+
+    // 3. Error correction: Level L
+    // GS ( k 03 00 31 45 n -> 1D 28 6B 03 00 31 45 30 (48 = '0' = L)
+    _buffer.addAll([0x1d, 0x28, 0x6b, 0x03, 0x00, 0x31, 0x45, 48]);
+
+    // 4. Store data
+    // GS ( k pL pH 31 50 30 d1...dk
+    List<int> data = latin1.encode(content);
+    int len = data.length + 3; // +3 for 31 50 30
+    int pL = len % 256;
+    int pH = len ~/ 256;
+    _buffer.addAll([0x1d, 0x28, 0x6b, pL, pH, 0x31, 0x50, 0x30]);
+    _buffer.addAll(data);
+
+    // 5. Print
+    // GS ( k 03 00 31 51 30 -> 1D 28 6B 03 00 31 51 30
+    _buffer.addAll([0x1d, 0x28, 0x6b, 0x03, 0x00, 0x31, 0x51, 0x30]);
+
+    // Reset alignment
+    _buffer.addAll(_cmdAlignLeft);
   }
 }
 

@@ -1,9 +1,10 @@
 import 'dart:convert';
 
 import 'package:edifly_pos/core/network/api_client.dart';
+import 'package:edifly_pos/domains/order/models/checkout_response_model.dart';
 
 class OrderService {
-  static Future<Map<String, dynamic>> checkout({
+  static Future<CheckoutResponseModel> checkout({
     required String clientUuid,
     required int closingId,
     required String paymentMethod,
@@ -30,6 +31,6 @@ class OrderService {
     );
     // print("response checkout: ${response.body}");
 
-    return jsonDecode(response.body);
+    return CheckoutResponseModel.fromJson(jsonDecode(response.body));
   }
 }
