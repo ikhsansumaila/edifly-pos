@@ -2,13 +2,32 @@ import 'package:edifly_pos/core/services/printer_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-class PrinterSettingsPage extends StatelessWidget {
+class PrinterSettingsPage extends StatefulWidget {
   const PrinterSettingsPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final printerService = Get.find<PrinterService>();
+  State<PrinterSettingsPage> createState() => _PrinterSettingsPageState();
+}
 
+class _PrinterSettingsPageState extends State<PrinterSettingsPage> {
+  final printerService = Get.find<PrinterService>();
+
+  @override
+  void initState() {
+    super.initState();
+    // Auto-load paired devices when page opens
+    printerService.loadPairedDevices();
+  }
+
+  @override
+  void dispose() {
+    // Stop scanning when leaving the page
+    printerService.stopScanning();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return DefaultTabController(
       length: 2,
       child: Scaffold(
@@ -168,65 +187,119 @@ class PrinterSettingsPage extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Available Devices (Scan Results) - Now on top
         const Text(
-          'Perangkat Dipasangkan',
+          'Perangkat Tersedia (Hasil Scan)',
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 12),
         Obx(() {
-          final deviceList = printerService.devices;
-          if (deviceList.isEmpty) {
-            return Container(
-              padding: const EdgeInsets.all(32),
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.bluetooth_disabled, size: 64, color: Colors.grey),
-                    const SizedBox(height: 12),
-                    Text('Tidak ada perangkat ditemukan', style: TextStyle(color: Colors.grey)),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Tekan "Cari Printer" untuk memuat perangkat',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.grey, fontSize: 12),
-                    ),
-                  ],
-                ),
+          final available = printerService.availableDevices;
+          if (available.isEmpty) {
+            if (printerService.isScanning.value) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8.0),
+                child: Center(child: CircularProgressIndicator()),
+              );
+            }
+            return const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8.0),
+              child: Text(
+                'Tekan "Cari Printer" untuk menemukan perangkat baru.',
+                style: TextStyle(color: Colors.grey),
               ),
             );
           }
-
           return ListView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            itemCount: deviceList.length,
-            itemBuilder: (context, index) {
-              final device = deviceList[index];
-              return Card(
-                color: Colors.grey.shade100,
-                margin: const EdgeInsets.only(bottom: 8),
-                child: ListTile(
-                  leading: const Icon(Icons.print, color: Color(0xFF5B3A1E)),
-                  title: Text(device.name),
-                  subtitle: Text(device.address),
-                  trailing: Obx(() {
-                    final selected = printerService.selectedDevice.value;
-                    final isSelected = selected?.address == device.address;
-                    return isSelected
-                        ? const Icon(Icons.check_circle, color: Colors.green)
-                        : TextButton(
-                          onPressed: () => printerService.connectToDevice(device),
-                          child: const Text('Hubungkan'),
-                        );
-                  }),
-                  onTap: () => printerService.connectToDevice(device),
-                ),
-              );
-            },
+            itemCount: available.length,
+            itemBuilder:
+                (context, index) =>
+                    _buildDeviceItem(printerService, available[index], isPaired: false),
+          );
+        }),
+
+        const SizedBox(height: 24),
+
+        // Paired Devices - Now below
+        const Text(
+          'Perangkat Terhubung / Dipasangkan',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 12),
+        Obx(() {
+          final paired = printerService.pairedDevices;
+          if (paired.isEmpty) {
+            return const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8.0),
+              child: Text('Belum ada perangkat dipasangkan.', style: TextStyle(color: Colors.grey)),
+            );
+          }
+          return ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: paired.length,
+            itemBuilder:
+                (context, index) => _buildDeviceItem(printerService, paired[index], isPaired: true),
           );
         }),
       ],
+    );
+  }
+
+  Widget _buildDeviceItem(
+    PrinterService printerService,
+    PrinterDevice device, {
+    required bool isPaired,
+  }) {
+    return Card(
+      color: Colors.grey.shade100,
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        leading: Icon(
+          isPaired ? Icons.bluetooth_connected : Icons.bluetooth,
+          color: const Color(0xFF5B3A1E),
+        ),
+        title: Text(device.name),
+        subtitle: Text(device.address),
+        trailing: Obx(() {
+          final selected = printerService.selectedDevice.value;
+          final isSelected = selected?.address == device.address;
+
+          return Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (isSelected)
+                const Icon(Icons.check_circle, color: Colors.green)
+              else
+                TextButton(
+                  onPressed: () => printerService.connectToDevice(device),
+                  child: const Text('Hubungkan'),
+                ),
+
+              if (isPaired)
+                IconButton(
+                  icon: const Icon(Icons.delete, color: Colors.red),
+                  onPressed: () {
+                    Get.defaultDialog(
+                      title: 'Lupakan Perangkat',
+                      middleText: 'Apakah Anda yakin ingin melupakan perangkat ${device.name}?',
+                      textCancel: 'Batal',
+                      textConfirm: 'Ya',
+                      confirmTextColor: Colors.white,
+                      onConfirm: () {
+                        Get.back();
+                        printerService.unpairDevice(device);
+                      },
+                    );
+                  },
+                ),
+            ],
+          );
+        }),
+        onTap: () => printerService.connectToDevice(device),
+      ),
     );
   }
 

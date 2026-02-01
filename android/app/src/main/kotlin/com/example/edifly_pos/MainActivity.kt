@@ -8,32 +8,63 @@ import android.os.Looper
 import android.util.Log
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 import java.io.IOException
 import java.io.OutputStream
 import java.util.UUID
 
 class MainActivity : FlutterActivity() {
-    private val TAG = "PrinterNative"
-    private val CHANNEL = "com.example.edifly_pos/printer"
-    
-    // Standard SPP UUID for Bluetooth Serial Port
-    private val SPP_UUID: UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
-    
+    companion object {
+        private const val CHANNEL = "com.example.edifly_pos/printer"
+        private const val TAG = "PrinterPlugin"
+        private val SPP_UUID: UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
+    }
+
     private var bluetoothAdapter: BluetoothAdapter? = null
     private var bluetoothSocket: BluetoothSocket? = null
     private var outputStream: OutputStream? = null
     private var connectedDevice: BluetoothDevice? = null
+
+    private val SCAN_CHANNEL = "com.example.edifly_pos/printer_scan"
+    private var scanEventSink: EventChannel.EventSink? = null
     
+    // BroadcastReceiver for Bluetooth Discovery
+    private val receiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: android.content.Context, intent: android.content.Intent) {
+            val action = intent.action
+            if (BluetoothDevice.ACTION_FOUND == action) {
+                val device: BluetoothDevice? = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
+                device?.let {
+                    // Send found device to Flutter
+                    val deviceMap = mapOf(
+                        "name" to (it.name ?: "Unknown"),
+                        "address" to it.address
+                    )
+                    Handler(Looper.getMainLooper()).post {
+                        scanEventSink?.success(deviceMap)
+                    }
+                }
+            }
+        }
+    }
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         
         bluetoothAdapter = BluetoothAdapter.getDefaultAdapter()
         
+        // Setup MethodChannel
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
             Log.d(TAG, "Method called: ${call.method}")
             
             when (call.method) {
+                "startScan" -> {
+                    startScan(result)
+                }
+                "stopScan" -> {
+                    stopScan(result)
+                }
                 "getPairedDevices" -> {
                     getPairedDevices(result)
                 }
@@ -73,10 +104,68 @@ class MainActivity : FlutterActivity() {
                     val raw = call.argument<Boolean>("raw") ?: false
                     printTSPL(text, width, height, raw, result)
                 }
+                "unpairDevice" -> {
+                    val address = call.argument<String>("address")
+                    if (address != null) {
+                        unpairDevice(address, result)
+                    } else {
+                        result.error("INVALID_ARGUMENT", "Address is required", null)
+                    }
+                }
                 else -> {
                     result.notImplemented()
                 }
             }
+        }
+
+        // Setup EventChannel for Scanning
+        io.flutter.plugin.common.EventChannel(flutterEngine.dartExecutor.binaryMessenger, SCAN_CHANNEL).setStreamHandler(
+            object : io.flutter.plugin.common.EventChannel.StreamHandler {
+                override fun onListen(arguments: Any?, events: io.flutter.plugin.common.EventChannel.EventSink?) {
+                    scanEventSink = events
+                }
+
+                override fun onCancel(arguments: Any?) {
+                    scanEventSink = null
+                }
+            }
+        )
+    }
+    
+    private fun startScan(result: MethodChannel.Result) {
+        try {
+            if (bluetoothAdapter?.isDiscovering == true) {
+                bluetoothAdapter?.cancelDiscovery()
+            }
+            
+            // Register receiver
+            val filter = android.content.IntentFilter(BluetoothDevice.ACTION_FOUND)
+            registerReceiver(receiver, filter)
+            
+            // Start discovery
+            val started = bluetoothAdapter?.startDiscovery() ?: false
+            if (started) {
+                result.success(true)
+            } else {
+                result.error("SCAN_ERROR", "Failed to start discovery", null)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Start Scan Error: ${e.message}")
+            result.error("ERROR", e.message, null)
+        }
+    }
+
+    private fun stopScan(result: MethodChannel.Result) {
+        try {
+            bluetoothAdapter?.cancelDiscovery()
+            try {
+                unregisterReceiver(receiver)
+            } catch (e: IllegalArgumentException) {
+                // Ignore if not registered
+            }
+            result.success(true)
+        } catch (e: Exception) {
+            result.error("ERROR", e.message, null)
         }
     }
     
@@ -102,6 +191,31 @@ class MainActivity : FlutterActivity() {
             result.error("ERROR", "Failed to get paired devices", e.message)
         }
     }
+
+    private fun unpairDevice(address: String, result: MethodChannel.Result) {
+        try {
+            val device = bluetoothAdapter?.getRemoteDevice(address)
+            if (device == null) {
+                result.error("DEVICE_NOT_FOUND", "Device not found", null)
+                return
+            }
+
+            // Unpairing requires calling hidden method via reflection
+            val method = device.javaClass.getMethod("removeBond")
+            val invoked = method.invoke(device) as Boolean
+
+            if (invoked) {
+                Log.d(TAG, "Unpair initiated for $address")
+                result.success(true)
+            } else {
+                Log.e(TAG, "Unpair failed for $address")
+                result.error("UNPAIR_ERROR", "Failed to initiate unpair", null)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Unpair exception: ${e.message}")
+            result.error("ERROR", "Unpair failed: ${e.message}", null)
+        }
+    }
     
     private fun connect(address: String, result: MethodChannel.Result) {
         Log.d(TAG, "Connecting to: $address")
@@ -110,6 +224,9 @@ class MainActivity : FlutterActivity() {
             try {
                 // Disconnect existing connection first
                 disconnectInternal()
+                
+                // Cancel discovery to improve connection stability
+                bluetoothAdapter?.cancelDiscovery()
                 
                 val device = bluetoothAdapter?.getRemoteDevice(address)
                 if (device == null) {
@@ -121,15 +238,13 @@ class MainActivity : FlutterActivity() {
                 }
                 
                 Log.d(TAG, "Device found: ${device.name}")
-                
-                // Cancel discovery before connecting
-                bluetoothAdapter?.cancelDiscovery()
-                
+                 
                 // Create socket and connect
                 Log.d(TAG, "Creating RFCOMM socket...")
                 bluetoothSocket = device.createRfcommSocketToServiceRecord(SPP_UUID)
                 
                 Log.d(TAG, "Connecting socket...")
+                // This call will trigger pairing if the device is not bonded
                 bluetoothSocket?.connect()
                 
                 Log.d(TAG, "Socket connected: ${bluetoothSocket?.isConnected}")
