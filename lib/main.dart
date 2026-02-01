@@ -1,5 +1,6 @@
+import 'package:edifly_pos/app/routes/app_pages.dart';
+import 'package:edifly_pos/app/routes/app_routes.dart';
 import 'package:edifly_pos/core/services/printer_service.dart';
-import 'package:edifly_pos/domains/auth/login_page.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -37,7 +38,7 @@ class PosApp extends StatelessWidget {
       theme: ThemeData(
         useMaterial3: false,
         brightness: Brightness.light,
-        primaryColor: const Color(0xFF4A3728),
+        primaryColor: const Color(0xFF4A3728), // Brown
         scaffoldBackgroundColor: Colors.white,
         fontFamily: 'Roboto',
         elevatedButtonTheme: ElevatedButtonThemeData(
@@ -48,7 +49,8 @@ class PosApp extends StatelessWidget {
         ),
       ),
 
-      home: const PosLoginPage(),
+      initialRoute: Routes.login,
+      getPages: AppPages.pages,
     );
   }
 }

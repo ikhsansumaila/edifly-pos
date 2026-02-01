@@ -2,16 +2,15 @@ import 'package:edifly_pos/core/storage/auth_storage.dart';
 import 'package:edifly_pos/domains/order/order_service.dart';
 import 'package:edifly_pos/domains/product/product_model.dart';
 import 'package:edifly_pos/domains/product/product_service.dart';
-import 'package:edifly_pos/domains/shift/closing_shift.dart';
 import 'package:edifly_pos/domains/shift/shift_controller.dart';
-import 'package:edifly_pos/domains/shift/shift_service.dart';
+import 'package:edifly_pos/widgets/confirmation_dialog.dart';
 import 'package:edifly_pos/widgets/receipt_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:uuid/uuid.dart';
 
-class CartItemController extends GetxController {
-  final cartItems = <String, ProductModel>{}.obs;
+class OrderProcessController extends GetxController {
+  final orderItems = <String, ProductModel>{}.obs;
   final productList = <ProductModel>[].obs;
 
   final isLoading = false.obs;
@@ -27,9 +26,9 @@ class CartItemController extends GetxController {
 
   final selectedChannel = 'OFFLINE'.obs;
 
-  final paymentMethods = ['Tunai (Cash)', 'QRIS', 'Transfer Bank'];
+  final paymentMethods = {'cash': 'Tunai (Cash)', 'qris': 'QRIS', 'transfer': 'Transfer Bank'};
 
-  final selectedPayment = 'Tunai (Cash)'.obs;
+  final selectedPayment = 'cash'.obs;
 
   final nominalCash = ''.obs;
 
@@ -38,10 +37,10 @@ class CartItemController extends GetxController {
 
   bool get isOffline => selectedChannel.value == 'OFFLINE';
 
-  bool get showNominalCash => isOffline && selectedPayment.value == 'Tunai (Cash)';
+  bool get showNominalCash => isOffline && selectedPayment.value == 'cash';
 
   bool get isValidCheckout {
-    if (cartItems.isEmpty) return false;
+    if (orderItems.isEmpty) return false;
     if (total.value == 0) return false;
     if (showNominalCash) {
       return cashAmount.value >= total.value;
@@ -54,13 +53,14 @@ class CartItemController extends GetxController {
 
     /// RULE:
     if (paymentChannel != 'OFFLINE') {
-      selectedPayment.value = 'Transfer Bank';
+      selectedPayment.value = 'transfer';
     } else {
-      selectedPayment.value = 'Tunai (Cash)';
+      selectedPayment.value = 'cash';
     }
   }
 
   final selectedCategory = 'SEMUA'.obs;
+  final searchQuery = ''.obs;
 
   List<String> get categories {
     final cats = productList.map((e) => e.categoryName).toSet().toList();
@@ -69,14 +69,28 @@ class CartItemController extends GetxController {
   }
 
   List<ProductModel> get filteredProductList {
-    if (selectedCategory.value == 'SEMUA') {
-      return productList;
+    List<ProductModel> filtered = productList;
+
+    if (selectedCategory.value != 'SEMUA') {
+      filtered = filtered.where((p) => p.categoryName == selectedCategory.value).toList();
     }
-    return productList.where((p) => p.categoryName == selectedCategory.value).toList();
+
+    if (searchQuery.value.isNotEmpty) {
+      filtered =
+          filtered
+              .where((p) => p.namaProduct.toLowerCase().contains(searchQuery.value.toLowerCase()))
+              .toList();
+    }
+
+    return filtered;
   }
 
   void selectCategory(String category) {
     selectedCategory.value = category;
+  }
+
+  void searchProduct(String query) {
+    searchQuery.value = query;
   }
 
   @override
@@ -92,13 +106,14 @@ class CartItemController extends GetxController {
     outletName.value = await AuthStorage.getNamaOutlet() ?? '';
   }
 
-  void _showErrorDialog(String message) {
+  void _showErrorDialog(String message, {String title = 'Error'}) {
     Get.defaultDialog(
-      title: 'Error',
+      title: title,
       middleText: message,
       textConfirm: 'OK',
       onConfirm: () => Get.back(),
       confirmTextColor: Colors.white,
+      buttonColor: Colors.brown,
     );
   }
 
@@ -115,94 +130,64 @@ class CartItemController extends GetxController {
   }
 
   Future<void> increment(int productId) async {
-    // Check Shift Status first if cart is empty (first item being added) or just check every time?
-    // User request: "when cashier adds item to cart". Checking every time ensures safety but might be slow.
-    // Optimization: Check only if cart is empty? Or maybe check once per session?
-    // User said: "when ... adds item ... if haven't closed shift ... must close".
-    // I will check it every time for now to be safe as per request.
-    final shiftController = Get.find<ShiftController>();
-    if (cartItems.isEmpty && !shiftController.isShiftOpen.value) {
-      try {
-        final response = await ShiftService.checkShiftStatus();
-        if (response['status'] == true) {
-          final data = response['data'];
-          final openedAtStr = data['opened_at'];
-          if (openedAtStr != null) {
-            final openedAt = DateTime.parse(openedAtStr);
-            final now = DateTime.now();
-
-            // Check if same day
-            if (!(openedAt.year == now.year &&
-                openedAt.month == now.month &&
-                openedAt.day == now.day)) {
-              // Different day, must close previous shift first
-              Get.defaultDialog(
-                title: 'Perhatian',
-                middleText:
-                    'Anda memiliki shift aktif dari hari sebelumnya. Harap lakukan closing terlebih dahulu.',
-                textConfirm: 'OK',
-                onConfirm: () {
-                  Get.back();
-                  Get.offAll(() => const ClosingShiftPage());
-                },
-                confirmTextColor: Colors.white,
-              );
-              return;
-            }
-          }
-        }
-      } catch (e) {
-        _showErrorDialog(e.toString());
-      }
-    }
-
-    String cartItemId = productId.toString();
-    if (cartItems[cartItemId] == null) {
+    String productIdStr = productId.toString();
+    if (orderItems[productIdStr] == null) {
       ProductModel item = productList.where((id) => id.id == productId).first;
       item.qty = 1;
-      cartItems.addAll({item.id.toString(): item});
+      orderItems.addAll({item.id.toString(): item});
       calculateTotal();
       update();
       return;
     }
 
-    int qty = cartItems[cartItemId]!.qty;
-    cartItems[cartItemId] = cartItems[cartItemId]!.copyWith(qty: qty + 1);
+    int qty = orderItems[productIdStr]!.qty;
+    orderItems[productIdStr] = orderItems[productIdStr]!.copyWith(qty: qty + 1);
     calculateTotal();
     update();
   }
 
   void decrement(int productId) {
-    String cartItemId = productId.toString();
-    int qty = cartItems[cartItemId]!.qty;
+    String productIdStr = productId.toString();
+    int qty = orderItems[productIdStr]!.qty;
     if (qty == 1) {
       remove(productId);
       return;
     }
 
-    cartItems[cartItemId] = cartItems[cartItemId]!.copyWith(qty: qty - 1);
+    orderItems[productIdStr] = orderItems[productIdStr]!.copyWith(qty: qty - 1);
     calculateTotal();
     update();
   }
 
   void remove(int productId) {
-    cartItems.remove(productId.toString());
+    orderItems.remove(productId.toString());
     calculateTotal();
     update();
   }
 
   void removeAll() {
-    cartItems.clear();
+    orderItems.clear();
     total.value = 0;
     update();
   }
 
   void calculateTotal() {
-    for (final item in cartItems.values) {
-      total.value += item.harga * item.qty;
+    total.value = 0;
+    for (final item in orderItems.values) {
+      double discountedPrice = item.harga * (1 - (item.discount / 100));
+      total.value += (discountedPrice * item.qty).toInt();
     }
     // print("total.value ${total.value}");
     update();
+  }
+
+  void updateDiscount(int productId, double discount) {
+    String productIdStr = productId.toString();
+    if (orderItems.containsKey(productIdStr)) {
+      orderItems[productIdStr] = orderItems[productIdStr]!.copyWith(discount: discount);
+      calculateTotal();
+      update();
+    }
   }
 
   @override
@@ -212,22 +197,40 @@ class CartItemController extends GetxController {
     super.onClose();
   }
 
-  Future<void> checkoutOrder() async {
-    if (cartItems.isEmpty) {
-      _showErrorDialog('Keranjang kosong, silahkan pilih produk terlebih dahulu');
+  void checkoutOrder() {
+    if (orderItems.isEmpty) {
+      _showErrorDialog('Keranjang kosong, silahkan pilih produk terlebih dahulu', title: '');
       return;
     }
 
     if (customerNameController.text.isEmpty) {
-      _showErrorDialog('Nama pelanggan tidak boleh kosong');
+      _showErrorDialog('Nama pelanggan tidak boleh kosong', title: 'Lengkapi');
       return;
     }
 
     if (queueNumberController.text.isEmpty) {
-      _showErrorDialog('Nomor antrian tidak boleh kosong');
+      _showErrorDialog('Nomor antrian tidak boleh kosong', title: 'Lengkapi');
       return;
     }
 
+    Get.dialog(
+      ConfirmationDialog(
+        source: selectedChannel.value,
+        total: total.value,
+        method: paymentMethods[selectedPayment.value] ?? selectedPayment.value,
+        onConfirm: () {
+          Get.back();
+          _processCheckout();
+        },
+        onCancel: () {
+          Get.back();
+        },
+      ),
+      barrierDismissible: false,
+    );
+  }
+
+  Future<void> _processCheckout() async {
     try {
       isLoading.value = true;
       final shiftController = Get.find<ShiftController>();
@@ -242,16 +245,16 @@ class CartItemController extends GetxController {
       }
 
       final itemsList =
-          cartItems.values
+          orderItems.values
               .map(
                 (e) => {
                   "product_id": e.id,
                   "nama_product": e.namaProduct,
                   "qty": e.qty,
                   "sub_total": e.harga * e.qty,
-                  "discount_pct": 0,
-                  "discount": 0,
-                  "total_details": e.harga * e.qty,
+                  "discount_pct": e.discount,
+                  "discount": (e.harga * e.qty * (e.discount / 100)).toInt(),
+                  "total_details": (e.harga * e.qty * (1 - (e.discount / 100))).toInt(),
                 },
               )
               .toList();
@@ -278,11 +281,11 @@ class CartItemController extends GetxController {
       // Show Receipt Popup
       await Get.dialog(
         ReceiptDialog(
-          cartItems: List<ProductModel>.from(cartItems.values),
+          orderItems: List<ProductModel>.from(orderItems.values),
           total: total.value,
           customerName: customerNameController.text,
           queueNumber: queueNumberController.text,
-          paymentMethod: selectedPayment.value,
+          paymentMethod: paymentMethods[selectedPayment.value] ?? selectedPayment.value,
           channel: selectedChannel.value,
           cashAmount: cashAmount.value,
           cashierName: userName.value,

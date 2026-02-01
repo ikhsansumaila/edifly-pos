@@ -17,7 +17,7 @@ class _PosLoginPageState extends State<PosLoginPage> {
   final AuthController authC = Get.put(AuthController());
 
   bool _obscure = true;
-  String _selectedOutlet = 'Bella Terra';
+  // String _selectedOutlet = 'Bella Terra';
 
   @override
   Widget build(BuildContext context) {
@@ -82,12 +82,11 @@ class _PosLoginPageState extends State<PosLoginPage> {
             _label('Kata Sandi'),
             _passwordField(),
 
-            const SizedBox(height: 10),
+            // const SizedBox(height: 10),
 
-            _label('Outlet'),
-            _outletField(),
-
-            const SizedBox(height: 10),
+            // _label('Outlet'),
+            // _outletField(),
+            // const SizedBox(height: 10),
 
             // _label('CAPTCHA'),
             // _captchaRow(),
@@ -148,25 +147,25 @@ class _PosLoginPageState extends State<PosLoginPage> {
     );
   }
 
-  Widget _outletField() {
-    return DropdownButtonFormField<String>(
-      initialValue: _selectedOutlet,
-      isDense: true,
-      dropdownColor: const Color(0xFF3A2E23),
-      style: const TextStyle(color: Colors.white),
-      items:
-          const ['-', 'Bella Terra']
-              .map(
-                (e) => DropdownMenuItem(
-                  value: e,
-                  child: Text(e, style: const TextStyle(fontSize: 13)),
-                ),
-              )
-              .toList(),
-      onChanged: (v) => _selectedOutlet = v!,
-      decoration: _decoration(),
-    );
-  }
+  // Widget _outletField() {
+  //   return DropdownButtonFormField<String>(
+  //     initialValue: _selectedOutlet,
+  //     isDense: true,
+  //     dropdownColor: const Color(0xFF3A2E23),
+  //     style: const TextStyle(color: Colors.white),
+  //     items:
+  //         const ['-', 'Bella Terra']
+  //             .map(
+  //               (e) => DropdownMenuItem(
+  //                 value: e,
+  //                 child: Text(e, style: const TextStyle(fontSize: 13)),
+  //               ),
+  //             )
+  //             .toList(),
+  //     onChanged: (v) => _selectedOutlet = v!,
+  //     decoration: _decoration(),
+  //   );
+  // }
 
   // Widget _captchaRow() {
   //   return Row(

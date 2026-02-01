@@ -1,8 +1,7 @@
+import 'package:edifly_pos/app/routes/app_routes.dart';
 import 'package:edifly_pos/core/storage/auth_storage.dart';
 import 'package:edifly_pos/domains/order/order_page.dart';
 import 'package:edifly_pos/domains/product/product_service.dart';
-import 'package:edifly_pos/domains/shift/closing_shift.dart';
-import 'package:edifly_pos/domains/shift/open_shift_page.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -105,7 +104,7 @@ class ShiftController extends GetxController {
             textConfirm: 'OK',
             onConfirm: () {
               Get.back();
-              Get.to(() => const ClosingShiftPage());
+              Get.toNamed(Routes.closingShift);
             },
             confirmTextColor: Colors.white,
           );
@@ -246,7 +245,7 @@ class ShiftController extends GetxController {
           textConfirm: 'OK',
           onConfirm: () {
             Get.back(); // Close dialog
-            Get.offAll(() => const OpenShiftPage());
+            Get.offAllNamed(Routes.openingShift);
           },
           confirmTextColor: Colors.white,
         );
@@ -271,39 +270,4 @@ class ShiftController extends GetxController {
       isLoading.value = false;
     }
   }
-
-  // Future<void> checkInitialStatus() async {
-  //   try {
-  //     isLoading.value = true;
-  //     final response = await ShiftService.checkShiftStatus();
-
-  //     if (response['status'] == true) {
-  //       final data = response['data'];
-  //       final openedAtStr = data['opened_at'];
-  //       if (openedAtStr != null) {
-  //         final openedAt = DateTime.parse(openedAtStr);
-  //         final now = DateTime.now();
-
-  //         // Check if same day
-  //         if (openedAt.year == now.year && openedAt.month == now.month && openedAt.day == now.day) {
-  //           Get.put(ProductService());
-  //           Get.offAll(() => const PosOrderPage());
-  //         } else {
-  //           // Different day, must close previous shift first
-  //           Get.snackbar(
-  //             'Perhatian',
-  //             'Anda memiliki shift aktif dari hari sebelumnya. Harap lakukan closing terlebih dahulu.',
-  //           );
-  //           Get.offAll(() => const ClosingShiftPage());
-  //         }
-  //       }
-  //     } else {
-  //       // No active shift, stay on open shift page or go to it
-  //     }
-  //   } catch (e) {
-  //     print("Error checking shift status: $e");
-  //   } finally {
-  //     isLoading.value = false;
-  //   }
-  // }
 }

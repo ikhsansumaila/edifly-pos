@@ -33,10 +33,11 @@ class RupiahInputFormatter extends TextInputFormatter {
 }
 
 class RupiahInput extends StatelessWidget {
-  const RupiahInput({super.key, required this.hint, required this.onChanged});
+  const RupiahInput({super.key, required this.hint, required this.onChanged, this.fontSize = 13});
 
   final String hint;
   final void Function(int) onChanged;
+  final double fontSize;
 
   @override
   Widget build(BuildContext context) {
@@ -45,7 +46,7 @@ class RupiahInput extends StatelessWidget {
       inputFormatters: [RupiahInputFormatter()],
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+        hintStyle: TextStyle(color: Colors.grey.shade600, fontSize: fontSize),
         isDense: true,
         filled: true,
         fillColor: Colors.grey.shade200,

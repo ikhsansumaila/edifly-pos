@@ -6,6 +6,7 @@ class ProductModel {
   final String fotoUrl;
 
   int qty;
+  double discount;
 
   ProductModel({
     required this.id,
@@ -14,6 +15,7 @@ class ProductModel {
     required this.harga,
     required this.fotoUrl,
     this.qty = 0,
+    this.discount = 0.0,
   });
 
   factory ProductModel.fromJson(Map<String, dynamic> json) {
@@ -24,6 +26,7 @@ class ProductModel {
       harga: int.tryParse(json['harga'].toString()) ?? 0,
       fotoUrl: json['foto_url'] ?? '',
       qty: json['qty'] ?? 0,
+      discount: double.tryParse(json['discount'].toString()) ?? 0.0,
     );
   }
 
@@ -35,6 +38,7 @@ class ProductModel {
       'harga': harga,
       'foto_url': fotoUrl,
       'qty': qty,
+      'discount': discount,
     };
   }
 
@@ -46,6 +50,7 @@ class ProductModel {
     int? harga,
     String? fotoUrl,
     int? qty,
+    double? discount,
   }) {
     return ProductModel(
       id: id ?? this.id,
@@ -54,6 +59,7 @@ class ProductModel {
       harga: harga ?? this.harga,
       fotoUrl: fotoUrl ?? this.fotoUrl,
       qty: qty ?? this.qty,
+      discount: discount ?? this.discount,
     );
   }
 }

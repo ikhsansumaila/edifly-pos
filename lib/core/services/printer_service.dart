@@ -438,7 +438,7 @@ class PrinterService extends GetxController {
 
   /// Print a receipt
   Future<bool> printReceipt({
-    required List<ProductModel> cartItems,
+    required List<ProductModel> orderItems,
     required int total,
     required String customerName,
     required String queueNumber,
@@ -462,7 +462,7 @@ class PrinterService extends GetxController {
     try {
       if (printerType.value == PrinterType.tspl) {
         return await _printReceiptTSPL(
-          cartItems: cartItems,
+          orderItems: orderItems,
           total: total,
           customerName: customerName,
           queueNumber: queueNumber,
@@ -472,7 +472,7 @@ class PrinterService extends GetxController {
         );
       } else {
         return await _printReceiptESCPOS(
-          cartItems: cartItems,
+          orderItems: orderItems,
           total: total,
           customerName: customerName,
           queueNumber: queueNumber,
@@ -492,7 +492,7 @@ class PrinterService extends GetxController {
 
   /// Print receipt with ESC/POS
   Future<bool> _printReceiptESCPOS({
-    required List<ProductModel> cartItems,
+    required List<ProductModel> orderItems,
     required int total,
     required String customerName,
     required String queueNumber,
@@ -535,7 +535,7 @@ class PrinterService extends GetxController {
     gen.hr();
 
     // Items
-    for (final item in cartItems) {
+    for (final item in orderItems) {
       gen.text(item.namaProduct, bold: true);
       gen.row('${item.qty} x ${formatRupiah(item.harga)}', formatRupiah(item.harga * item.qty));
     }
@@ -585,7 +585,7 @@ class PrinterService extends GetxController {
 
   /// Print receipt with TSPL (for label printers)
   Future<bool> _printReceiptTSPL({
-    required List<ProductModel> cartItems,
+    required List<ProductModel> orderItems,
     required int total,
     required String customerName,
     required String queueNumber,
@@ -623,7 +623,7 @@ class PrinterService extends GetxController {
     estimatedDots += 8; // Divider
 
     // Items section
-    for (int i = 0; i < cartItems.length; i++) {
+    for (int i = 0; i < orderItems.length; i++) {
       estimatedDots += smallLineHeight; // Name
       estimatedDots += smallLineHeight + 2; // Qty & Price
     }
@@ -709,8 +709,8 @@ class PrinterService extends GetxController {
     y += 8;
 
     // ========== ITEMS ==========
-    for (int i = 0; i < cartItems.length && y < height * 8 - 100; i++) {
-      final item = cartItems[i];
+    for (int i = 0; i < orderItems.length && y < height * 8 - 100; i++) {
+      final item = orderItems[i];
       final subtotal = item.harga * item.qty;
 
       // Product name (bold)

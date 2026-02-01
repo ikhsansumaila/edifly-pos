@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 class ReceiptDialog extends StatelessWidget {
-  final List<ProductModel> cartItems;
+  final List<ProductModel> orderItems;
   final int total;
   final String customerName;
   final String queueNumber;
@@ -17,7 +17,7 @@ class ReceiptDialog extends StatelessWidget {
 
   const ReceiptDialog({
     super.key,
-    required this.cartItems,
+    required this.orderItems,
     required this.total,
     required this.customerName,
     required this.queueNumber,
@@ -78,9 +78,9 @@ class ReceiptDialog extends StatelessWidget {
                     ListView.builder(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
-                      itemCount: cartItems.length,
+                      itemCount: orderItems.length,
                       itemBuilder: (context, index) {
-                        final item = cartItems[index];
+                        final item = orderItems[index];
                         return Padding(
                           padding: const EdgeInsets.symmetric(vertical: 4),
                           child: Column(
@@ -137,7 +137,7 @@ class ReceiptDialog extends StatelessWidget {
               child: ElevatedButton.icon(
                 onPressed: () async {
                   await Get.find<PrinterService>().printReceipt(
-                    cartItems: cartItems,
+                    orderItems: orderItems,
                     total: total,
                     customerName: customerName,
                     queueNumber: queueNumber,

@@ -1,7 +1,6 @@
+import 'package:edifly_pos/app/routes/app_routes.dart';
 import 'package:edifly_pos/core/storage/auth_storage.dart';
-import 'package:edifly_pos/domains/order/order_page.dart';
 import 'package:edifly_pos/domains/product/product_service.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -19,20 +18,20 @@ class AuthController extends GetxController {
   final role = ''.obs;
 
   Future<void> login() async {
-    if (kDebugMode && email.value == 'ikhsan') {
-      await AuthStorage.saveAuth(
-        token: "1926491632311449f9eafd0eaf2742bfcaebbff404a776666950544edfabe631",
-        outletId: '1',
-        userId: '1',
-        role: "kasir",
-        name: "Ikhsan",
-        namaOutlet: "Bella Terra",
-        email: email.value,
-      );
-      Get.put(ProductService());
-      Get.offAll(() => const PosOrderPage());
-      return;
-    }
+    // if (kDebugMode && email.value == 'ikhsan') {
+    //   await AuthStorage.saveAuth(
+    //     token: "1926491632311449f9eafd0eaf2742bfcaebbff404a776666950544edfabe631",
+    //     outletId: '1',
+    //     userId: '1',
+    //     role: "kasir",
+    //     name: "Ikhsan",
+    //     namaOutlet: "Bella Terra",
+    //     email: email.value,
+    //   );
+    //   Get.put(ProductService());
+    //   Get.offAllNamed(Routes.order);
+    //   return;
+    // }
     if (email.value.trim().isEmpty || password.value.trim().isEmpty) {
       Get.snackbar(
         'Error',
@@ -74,7 +73,7 @@ class AuthController extends GetxController {
 
       // Redirect directly to Order Page
       Get.put(ProductService());
-      Get.offAll(() => const PosOrderPage());
+      Get.offAllNamed(Routes.order);
     } catch (e) {
       // print("login error $e");
       Get.snackbar(
@@ -104,7 +103,7 @@ class AuthController extends GetxController {
       Get.snackbar('Sukses', 'Logout berhasil');
 
       // Navigate to login page
-      Get.offAllNamed('/login');
+      Get.offAllNamed(Routes.login);
     } catch (e) {
       Get.snackbar(
         'Logout Gagal',

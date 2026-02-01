@@ -1,9 +1,8 @@
+import 'package:edifly_pos/app/routes/app_routes.dart';
 import 'package:edifly_pos/core/utils/currency.dart';
 import 'package:edifly_pos/domains/auth/auth_controller.dart';
-import 'package:edifly_pos/domains/order/cart_item_controller.dart';
-import 'package:edifly_pos/domains/printer/printer_settings_page.dart';
+import 'package:edifly_pos/domains/order/order_process_controller.dart';
 import 'package:edifly_pos/domains/product/product_model.dart';
-import 'package:edifly_pos/domains/shift/closing_shift.dart';
 import 'package:edifly_pos/widgets/custom_network_image.dart';
 import 'package:edifly_pos/widgets/top_bar.dart';
 import 'package:flutter/material.dart';
@@ -14,14 +13,14 @@ class PosOrderPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cartController = Get.put(CartItemController());
+    final orderProcessController = Get.put(OrderProcessController());
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6F8),
       body: Column(
         children: [
           Obx(() {
             return TopBar(
-              userName: cartController.userName.value,
+              userName: orderProcessController.userName.value,
               menus: [
                 TopBarMenuModel(
                   label: 'Pesanan',
@@ -36,7 +35,7 @@ class PosOrderPage extends StatelessWidget {
                   label: 'Tutup Pesanan',
                   icon: Icons.lock,
                   onTap: () {
-                    Get.to(() => const ClosingShiftPage());
+                    Get.toNamed(Routes.closingShift);
                     // Jalankan fungsi B (Contoh: Navigasi ke halaman rekonsiliasi)
                   },
                 ),
@@ -44,7 +43,7 @@ class PosOrderPage extends StatelessWidget {
                   label: 'Atur Printer',
                   icon: Icons.print,
                   onTap: () {
-                    Get.to(() => const PrinterSettingsPage());
+                    Get.toNamed(Routes.printSettings);
                   },
                 ),
               ],
@@ -59,7 +58,7 @@ class PosOrderPage extends StatelessWidget {
             child: Row(
               children: [
                 /// LEFT - MENU
-                Expanded(flex: 6, child: _menuSection()),
+                Expanded(flex: 7, child: _menuSection()),
 
                 /// RIGHT - CART
                 Expanded(flex: 4, child: _cartSection()),
@@ -78,11 +77,17 @@ class PosOrderPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Menu',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Menu',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black),
+              ),
+              _searchBar(),
+            ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           _categoryRow(),
           const SizedBox(height: 16),
           Expanded(child: _menuGrid()),
@@ -91,27 +96,50 @@ class PosOrderPage extends StatelessWidget {
     );
   }
 
+  Widget _searchBar() {
+    final orderProcessController = Get.find<OrderProcessController>();
+    return Container(
+      width: 150,
+      height: 26,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: TextField(
+        onChanged: (val) => orderProcessController.searchProduct(val),
+        decoration: InputDecoration(
+          hintText: 'Cari menu...',
+          hintStyle: TextStyle(fontSize: 10, color: Colors.grey),
+          prefixIcon: Icon(Icons.search, size: 18, color: Colors.grey),
+          border: InputBorder.none,
+        ),
+        style: TextStyle(fontSize: 10),
+      ),
+    );
+  }
+
   Widget _categoryRow() {
-    final cartController = Get.find<CartItemController>();
+    final orderProcessController = Get.find<OrderProcessController>();
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Obx(() {
         return Row(
           children:
-              cartController.categories
+              orderProcessController.categories
                   .map(
                     (e) => Padding(
-                      padding: const EdgeInsets.only(right: 8),
+                      padding: const EdgeInsets.only(right: 4),
                       child: GestureDetector(
-                        onTap: () => cartController.selectCategory(e),
+                        onTap: () => orderProcessController.selectCategory(e),
                         child: Chip(
                           label: Text(e),
                           backgroundColor:
-                              cartController.selectedCategory.value == e
+                              orderProcessController.selectedCategory.value == e
                                   ? Colors.brown
                                   : Colors.grey,
-                          labelStyle: const TextStyle(color: Colors.white),
+                          labelStyle: const TextStyle(color: Colors.white, fontSize: 10),
                         ),
                       ),
                     ),
@@ -123,21 +151,21 @@ class PosOrderPage extends StatelessWidget {
   }
 
   Widget _menuGrid() {
-    final cartController = Get.find<CartItemController>();
+    final orderProcessController = Get.find<OrderProcessController>();
 
     return Obx(() {
-      if (cartController.isLoadingProduct.value) {
+      if (orderProcessController.isLoadingProduct.value) {
         return const Center(child: CircularProgressIndicator());
       }
-      List<ProductModel> productList = cartController.filteredProductList;
+      List<ProductModel> productList = orderProcessController.filteredProductList;
       if (productList.isEmpty) {
         return const Center(child: Text("Tidak ada produk"));
       }
       return GridView.builder(
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 3,
-          mainAxisSpacing: 16,
-          crossAxisSpacing: 16,
+          mainAxisSpacing: 8,
+          crossAxisSpacing: 8,
           childAspectRatio: 0.85,
         ),
         itemCount: productList.length,
@@ -149,18 +177,22 @@ class PosOrderPage extends StatelessWidget {
   }
 
   Widget _menuCard({required ProductModel product}) {
-    final cartController = Get.find<CartItemController>();
+    final orderProcessController = Get.find<OrderProcessController>();
     return GestureDetector(
-      onTap: () => cartController.increment(product.id),
+      onTap: () => orderProcessController.increment(product.id),
       child: Card(
         color: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        child: Padding(
-          padding: const EdgeInsets.all(10),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                padding: const EdgeInsets.fromLTRB(8, 0, 8, 15),
                 child: Stack(
                   children: [
                     Center(child: CustomNetworkImage(imageUrl: product.fotoUrl, fit: BoxFit.cover)),
@@ -170,30 +202,40 @@ class PosOrderPage extends StatelessWidget {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: Colors.black,
-                          borderRadius: BorderRadius.circular(10),
+                          color: Colors.deepOrange,
+                          borderRadius: BorderRadius.circular(5),
                         ),
                         child: Text(
                           formatRupiah(product.harga),
-                          style: TextStyle(color: Colors.white, fontSize: 10),
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 8),
-              Text(
+            ),
+            // const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              child: Text(
                 product.namaProduct,
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
-                  fontSize: 12,
+                  fontSize: 10,
                   color: Colors.grey,
                 ),
               ),
-              Text(product.categoryName, style: TextStyle(fontSize: 12, color: Colors.grey)),
-            ],
-          ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+              child: Text(product.categoryName, style: TextStyle(fontSize: 10, color: Colors.grey)),
+            ),
+          ],
         ),
       ),
     );
@@ -201,7 +243,7 @@ class PosOrderPage extends StatelessWidget {
 
   // ================= CART SECTION =================
   Widget _cartSection() {
-    final cartController = Get.find<CartItemController>();
+    final orderProcessController = Get.find<OrderProcessController>();
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: const BoxDecoration(
@@ -215,15 +257,15 @@ class PosOrderPage extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('🛒 Keranjang', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              Text('🛒 Keranjang', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
               GestureDetector(
-                onTap: () => cartController.removeAll(),
+                onTap: () => orderProcessController.removeAll(),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.delete_outline, color: Colors.red, size: 14),
+                    Icon(Icons.delete_outline, color: Colors.red, size: 11),
                     const SizedBox(width: 4),
-                    Text('HAPUS SEMUA', style: TextStyle(color: Colors.red, fontSize: 11)),
+                    Text('HAPUS SEMUA', style: TextStyle(color: Colors.red, fontSize: 9)),
                   ],
                 ),
               ),
@@ -235,7 +277,7 @@ class PosOrderPage extends StatelessWidget {
           /// SCROLL AREA
           Expanded(
             child: Obx(() {
-              final items = cartController.cartItems.values.toList();
+              final items = orderProcessController.orderItems.values.toList();
 
               /// ===== EMPTY STATE =====
               if (items.isEmpty) {
@@ -278,13 +320,18 @@ class PosOrderPage extends StatelessWidget {
                                 (e) => Container(
                                   margin: const EdgeInsets.only(bottom: 8),
                                   child: _cartItem(
-                                    id: e.id,
                                     title: e.namaProduct,
                                     price: '${formatRupiah(e.harga)} x ${e.qty}',
+                                    totalPrice: formatRupiah(
+                                      (e.harga * e.qty * (1 - (e.discount / 100))).toInt(),
+                                    ),
                                     qty: e.qty,
-                                    onAdd: () => cartController.increment(e.id),
-                                    onRemove: () => cartController.decrement(e.id),
-                                    onDelete: () => cartController.remove(e.id),
+                                    discount: e.discount,
+                                    onDiscountChanged:
+                                        (val) => orderProcessController.updateDiscount(e.id, val),
+                                    onAdd: () => orderProcessController.increment(e.id),
+                                    onRemove: () => orderProcessController.decrement(e.id),
+                                    onDelete: () => orderProcessController.remove(e.id),
                                   ),
                                 ),
                               )
@@ -315,14 +362,14 @@ class PosOrderPage extends StatelessWidget {
 
           /// Kembalian
           Obx(() {
-            final cartController = Get.find<CartItemController>();
-            if (!cartController.isOffline ||
-                !cartController.showNominalCash ||
-                cartController.cartItems.isEmpty) {
+            final orderProcessController = Get.find<OrderProcessController>();
+            if (!orderProcessController.isOffline ||
+                !orderProcessController.showNominalCash ||
+                orderProcessController.orderItems.isEmpty) {
               return const SizedBox.shrink();
             }
-            final cashInput = cartController.cashAmount.value;
-            final total = cartController.total.value;
+            final cashInput = orderProcessController.cashAmount.value;
+            final total = orderProcessController.total.value;
 
             // Jika input 0 atau belum diisi, tampilkan Kembalian Rp 0
             if (cashInput == 0) {
@@ -381,26 +428,29 @@ class PosOrderPage extends StatelessWidget {
           }),
 
           Obx(() {
-            final isValid = cartController.isValidCheckout;
+            final isValid = orderProcessController.isValidCheckout;
             return SizedBox(
               width: double.infinity,
-              height: 42,
+              height: 35,
               child: ElevatedButton.icon(
                 onPressed:
                     isValid
                         ? () {
-                          cartController.checkoutOrder();
+                          orderProcessController.checkoutOrder();
                         }
                         : null,
                 icon: const Icon(Icons.check_circle_outline, size: 18),
                 label:
-                    cartController.isLoading.value
+                    orderProcessController.isLoading.value
                         ? const SizedBox(
                           width: 16,
                           height: 16,
                           child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                         )
-                        : const Text('CHECK OUT', style: TextStyle(fontWeight: FontWeight.bold)),
+                        : const Text(
+                          'CHECK OUT',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                        ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: isValid ? const Color(0xFF5B3A1E) : Colors.grey.shade400,
                   foregroundColor: Colors.white,
@@ -416,27 +466,22 @@ class PosOrderPage extends StatelessWidget {
   }
 
   Widget _cartItem({
-    required int id,
     required String title,
     required String price,
+    required String totalPrice,
     required int qty,
+    required double discount,
+    required Function(double) onDiscountChanged,
     required VoidCallback onAdd,
     required VoidCallback onRemove,
     required VoidCallback onDelete,
   }) {
-    // print("cartItem productID $id");
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       decoration: BoxDecoration(
-        color: Colors.grey[200],
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        color: const Color.fromARGB(255, 251, 255, 255),
+        borderRadius: BorderRadius.circular(3),
+        border: Border.all(color: Colors.black12, width: 0.8),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -451,13 +496,14 @@ class PosOrderPage extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontSize: 11,
+                    fontSize: 9,
                     fontWeight: FontWeight.w600,
                     color: Colors.black,
                   ),
                 ),
                 const SizedBox(height: 2),
-                Text(price, style: TextStyle(fontSize: 10, color: Colors.grey[600])),
+                Text(price, style: TextStyle(fontSize: 8, color: Colors.grey[600])),
+                Text(totalPrice, style: TextStyle(fontSize: 9, color: Colors.black)),
               ],
             ),
           ),
@@ -468,31 +514,64 @@ class PosOrderPage extends StatelessWidget {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // Discount Input
+              Column(
+                children: [
+                  SizedBox(
+                    width: 40,
+                    height: 15,
+                    child: TextFormField(
+                      initialValue: discount == 0 ? '' : discount.toStringAsFixed(0),
+                      keyboardType: TextInputType.number,
+                      textAlign: TextAlign.center,
+                      decoration: InputDecoration(
+                        hintText: '0%',
+                        hintStyle: TextStyle(fontSize: 9, color: Colors.grey),
+                        contentPadding: EdgeInsets.zero,
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(4),
+                          // borderSide: BorderSide(color: Colors.grey.shade400),
+                        ),
+                      ),
+                      style: const TextStyle(fontSize: 9),
+                      onChanged: (val) {
+                        final d = double.tryParse(val) ?? 0.0;
+                        onDiscountChanged(d);
+                      },
+                    ),
+                  ),
+                  // Text('disc%', style: TextStyle(fontSize: 9, color: Colors.grey)),
+                ],
+              ),
+              const SizedBox(width: 8),
+
               _qtyButton(icon: Icons.remove, onTap: onRemove),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 6),
                 child: Text(
                   qty.toString(),
                   style: const TextStyle(
-                    fontSize: 14,
+                    fontSize: 9,
                     fontWeight: FontWeight.w600,
                     color: Colors.black,
                   ),
                 ),
               ),
               _qtyButton(icon: Icons.add, onTap: onAdd),
-              const SizedBox(width: 8),
-              GestureDetector(
-                onTap: onDelete,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.red,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.grey.shade400),
-                  ),
-                  child: const Icon(Icons.close, size: 16, color: Colors.white),
-                ),
-              ),
+              // const SizedBox(width: 8),
+              // GestureDetector(
+              //   onTap: onDelete,
+              //   child: Container(
+              //     decoration: BoxDecoration(
+              //       color: Colors.red,
+              //       shape: BoxShape.circle,
+              //       border: Border.all(color: Colors.grey.shade400),
+              //     ),
+              //     child: const Icon(Icons.close, size: 13, color: Colors.white),
+              //   ),
+              // ),
             ],
           ),
         ],
@@ -504,20 +583,20 @@ class PosOrderPage extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 26,
-        height: 26,
+        width: 15,
+        height: 15,
         decoration: BoxDecoration(
-          color: Colors.black,
+          color: const Color.fromARGB(255, 247, 247, 247),
           shape: BoxShape.circle,
           border: Border.all(color: Colors.grey.shade400),
         ),
-        child: Icon(icon, size: 16, color: Colors.white),
+        child: Icon(icon, size: 10, color: Colors.black),
       ),
     );
   }
 
   Widget _checkoutForm() {
-    final cartController = Get.find<CartItemController>();
+    final orderProcessController = Get.find<OrderProcessController>();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -531,9 +610,9 @@ class PosOrderPage extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Nama Pemesan', style: TextStyle(fontSize: 11, color: Colors.black)),
+                  const Text('Nama Pemesan', style: TextStyle(fontSize: 10, color: Colors.black)),
                   const SizedBox(height: 4),
-                  _input('atas nama', cartController.customerNameController),
+                  _input('atas nama', orderProcessController.customerNameController),
                 ],
               ),
             ),
@@ -546,9 +625,9 @@ class PosOrderPage extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('No. Antrian', style: TextStyle(fontSize: 11, color: Colors.black)),
+                  const Text('No. Antrian', style: TextStyle(fontSize: 10, color: Colors.black)),
                   const SizedBox(height: 4),
-                  _input('', cartController.queueNumberController),
+                  _input('', orderProcessController.queueNumberController),
                 ],
               ),
             ),
@@ -577,22 +656,23 @@ class PosOrderPage extends StatelessWidget {
         Divider(height: 1, thickness: 1, color: Colors.black12),
         const SizedBox(height: 12),
 
-        const Text('Metode Pembayaran', style: TextStyle(fontSize: 11, color: Colors.black)),
+        const Text('Metode Pembayaran', style: TextStyle(fontSize: 10, color: Colors.black)),
         const SizedBox(height: 4),
 
         Obx(() {
-          final controller = Get.find<CartItemController>();
+          final controller = Get.find<OrderProcessController>();
 
+          // option ('Tunai / Cash'),
           return DropdownButtonFormField<String>(
             initialValue: controller.selectedPayment.value,
             style: TextStyle(
               color: controller.isOffline ? Colors.black : Colors.grey,
-              fontSize: 13,
+              fontSize: 10,
             ),
             dropdownColor: Colors.white,
             items:
-                controller.paymentMethods
-                    .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                controller.paymentMethods.entries
+                    .map((e) => DropdownMenuItem(value: e.key, child: Text(e.value)))
                     .toList(),
             onChanged:
                 controller.isOffline
@@ -601,27 +681,24 @@ class PosOrderPage extends StatelessWidget {
             iconDisabledColor: Colors.grey, // 👈 warna icon dropdown
             iconEnabledColor: Colors.grey,
             decoration: InputDecoration(
-              hintText: controller.selectedPayment.value,
+              hintText: controller.paymentMethods[controller.selectedPayment.value] ?? '-',
               hintStyle: TextStyle(color: Colors.grey.shade600, fontSize: 13),
               isDense: true,
               filled: true,
               fillColor: controller.isOffline ? Colors.white : Colors.grey.shade200,
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(6),
                 borderSide: BorderSide(
-                  color: Colors.grey, // warna border ketika enable
-                  width: 1.5,
+                  color: Colors.grey.shade400, // warna border ketika enable
+                  width: 0.8,
                 ),
               ),
             ),
           );
         }),
 
-        const SizedBox(height: 4),
-
-        // _input('Tunai / Cash'),
         const SizedBox(height: 12),
 
         /// SUBTOTAL
@@ -629,10 +706,10 @@ class PosOrderPage extends StatelessWidget {
           () => Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Subtotal', style: TextStyle(fontSize: 12, color: Colors.black)),
+              const Text('Subtotal', style: TextStyle(fontSize: 10, color: Colors.black)),
               Text(
-                formatRupiah(cartController.total.value),
-                style: const TextStyle(fontSize: 12, color: Colors.black),
+                formatRupiah(orderProcessController.total.value),
+                style: const TextStyle(fontSize: 10, color: Colors.black),
               ),
             ],
           ),
@@ -648,13 +725,13 @@ class PosOrderPage extends StatelessWidget {
           children: [
             const Text(
               'TOTAL',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black),
+              style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.black),
             ),
             Obx(
               () => Text(
-                formatRupiah(cartController.total.value),
+                formatRupiah(orderProcessController.total.value),
                 style: const TextStyle(
-                  fontSize: 14,
+                  fontSize: 10,
                   fontWeight: FontWeight.bold,
                   color: Colors.black,
                 ),
@@ -663,25 +740,26 @@ class PosOrderPage extends StatelessWidget {
           ],
         ),
 
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
 
         Obx(
           () =>
-              (cartController.isOffline && cartController.showNominalCash)
+              (orderProcessController.isOffline && orderProcessController.showNominalCash)
                   ? Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const SizedBox(height: 12),
                       const Text(
                         'BAYAR (NOMINAL)',
-                        style: TextStyle(fontSize: 11, color: Colors.black),
+                        style: TextStyle(fontSize: 10, color: Colors.black),
                       ),
                       const SizedBox(height: 4),
                       RupiahInput(
+                        fontSize: 10,
                         hint: 'Masukkan nominal',
                         onChanged: (val) {
                           // print("Nilai int: $val");
-                          cartController.cashAmount.value = val;
+                          orderProcessController.cashAmount.value = val;
                         },
                       ),
                     ],
@@ -697,41 +775,44 @@ class PosOrderPage extends StatelessWidget {
       controller: controller,
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: TextStyle(color: Colors.grey.shade600, fontSize: 13),
-        isDense: true,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         filled: true,
-        fillColor: Colors.grey.shade200,
+        fillColor: Colors.white,
+        isDense: true,
+        hintStyle: TextStyle(fontSize: 12, color: Colors.grey),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide.none,
+          borderRadius: BorderRadius.circular(6),
+          borderSide: BorderSide(
+            color: Colors.grey.shade400, // warna border ketika enable
+            width: 0.8,
+          ),
         ),
       ),
-      style: const TextStyle(color: Colors.black),
+      style: const TextStyle(fontSize: 12),
     );
   }
 
   Widget _badge(String label, Color color) {
-    final cartController = Get.find<CartItemController>();
+    final orderProcessController = Get.find<OrderProcessController>();
     return Obx(() {
-      final isSelected = cartController.selectedChannel.value == label;
+      final isSelected = orderProcessController.selectedChannel.value == label;
 
       return InkWell(
-        onTap: () => cartController.selectPaymentChannel(label),
+        onTap: () => orderProcessController.selectPaymentChannel(label),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
           decoration: BoxDecoration(
             color: isSelected ? color : color.withAlpha(150),
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (isSelected) const Icon(Icons.check, size: 14, color: Colors.white),
+              if (isSelected) const Icon(Icons.check, size: 12, color: Colors.white),
               if (isSelected) const SizedBox(width: 4),
               Text(
                 label,
-                style: TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 9, color: Colors.white, fontWeight: FontWeight.bold),
               ),
             ],
           ),
