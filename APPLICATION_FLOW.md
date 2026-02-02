@@ -77,3 +77,77 @@ Sistem memastikan integritas data penjualan per shift dengan mekanisme validasi 
 ## 6. Logout
 - **Akses**: Ikon Keluar di pojok kanan atas Top Bar.
 - **Fungsi**: Menghapus sesi lokal dan kembali ke halaman Login.
+
+---
+
+## 7. Build & Deployment
+
+### Versioning
+Aplikasi menggunakan format **Semantic Versioning** dengan stage:
+```
+MAJOR.MINOR.PATCH[-STAGE]+BUILD_NUMBER
+```
+- **MAJOR**: Perubahan besar (breaking changes)
+- **MINOR**: Fitur baru (backward compatible)
+- **PATCH**: Bug fixes
+- **STAGE**: dev, alpha, beta, rc (opsional)
+- **BUILD_NUMBER**: Nomor build internal (wajib naik untuk Play Store)
+
+### Stage Development
+
+| Stage | Format | Keterangan |
+|-------|--------|------------|
+| `dev` | `0.0.4-dev+1` | Development |
+| `alpha` | `0.0.4-alpha+1` | Alpha testing |
+| `beta` | `0.0.4-beta+1` | Beta testing |
+| `rc` | `0.0.4-rc+1` | Release Candidate |
+| `prod` | `0.0.4+1` | Production |
+
+### Build Script
+Gunakan `build.sh` untuk build APK dengan opsi auto-increment versi dan stage:
+
+```bash
+# Format
+./build.sh [mode] [increment] [stage]
+
+# Mode: debug, release, both
+# Increment: none, build, patch, minor, major
+# Stage: dev, alpha, beta, rc, prod, keep
+
+# Contoh
+./build.sh release patch            # Build release + increment patch
+./build.sh release patch dev        # Build release + patch + set ke dev
+./build.sh release none prod        # Build release + pindah ke production
+```
+
+### Flow Development → Production
+
+```
+0.0.4-dev+1   → ./build.sh release patch        → 0.0.5-dev+2
+0.0.5-dev+2   → ./build.sh release build beta   → 0.0.5-beta+3
+0.0.5-beta+3  → ./build.sh release build rc     → 0.0.5-rc+4
+0.0.5-rc+4    → ./build.sh release none prod    → 0.0.5+4  ← Production!
+```
+
+### Kapan Menggunakan Increment?
+
+| Jenis Perubahan | Increment | Command | Contoh |
+|-----------------|-----------|---------|--------|
+| 🐛 Bug Fix | `patch` | `./build.sh release patch` | Fix login, fix crash |
+| ✨ Fitur Baru | `minor` | `./build.sh release minor` | Tambah laporan, payment baru |
+| 🔧 Tech Debt | `build` | `./build.sh release build` | Refactor, optimasi, cleanup |
+| 🚀 Major Update | `major` | `./build.sh release major` | Redesign UI, migrasi DB |
+
+
+### Output APK
+File APK otomatis dinamai dengan format:
+```
+edifly-pos-v{version}-{mode}.apk
+```
+
+Lokasi output:
+```
+build/app/outputs/flutter-apk/
+├── edifly-pos-v0.0.4-dev-debug.apk
+└── edifly-pos-v0.0.4-dev-release.apk
+```
