@@ -1,5 +1,6 @@
 import 'package:edifly_pos/app/middleware/shift_check_middleware.dart';
 import 'package:edifly_pos/app/routes/app_routes.dart';
+import 'package:edifly_pos/domains/order/order_list_page.dart';
 import 'package:edifly_pos/domains/printer/printer_settings_page.dart';
 import 'package:edifly_pos/domains/shift/closing_shift.dart';
 import 'package:edifly_pos/domains/shift/open_shift_page.dart';
@@ -16,6 +17,7 @@ class AppPages {
       page: () => const PosOrderPage(),
       middlewares: [ShiftCheckMiddleware()],
     ),
+    GetPage(name: Routes.orderList, page: () => const OrderListPage()),
     GetPage(name: Routes.closingShift, page: () => const ClosingShiftPage()),
     GetPage(name: Routes.openingShift, page: () => const OpenShiftPage()),
     GetPage(name: Routes.printSettings, page: () => const PrinterSettingsPage()),

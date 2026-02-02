@@ -27,8 +27,7 @@ class PosOrderPage extends StatelessWidget {
                   icon: Icons.receipt_long,
                   isActive: true,
                   onTap: () {
-                    // print("Membuka List Pesanan...");
-                    // Jalankan fungsi A
+                    Get.toNamed(Routes.orderList);
                   },
                 ),
                 TopBarMenuModel(
