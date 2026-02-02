@@ -210,15 +210,15 @@ class OrderProcessController extends GetxController {
       return;
     }
 
-    if (customerNameController.text.isEmpty) {
-      _showErrorDialog('Nama pelanggan tidak boleh kosong', title: 'Lengkapi');
-      return;
-    }
+    // if (customerNameController.text.isEmpty) {
+    //   _showErrorDialog('Nama pelanggan tidak boleh kosong', title: 'Lengkapi');
+    //   return;
+    // }
 
-    if (queueNumberController.text.isEmpty) {
-      _showErrorDialog('Nomor antrian tidak boleh kosong', title: 'Lengkapi');
-      return;
-    }
+    // if (queueNumberController.text.isEmpty) {
+    //   _showErrorDialog('Nomor antrian tidak boleh kosong', title: 'Lengkapi');
+    //   return;
+    // }
 
     Get.dialog(
       ConfirmationDialog(
@@ -240,7 +240,10 @@ class OrderProcessController extends GetxController {
   Future<void> _processCheckout() async {
     try {
       isLoading.value = true;
-      final shiftController = Get.find<ShiftController>();
+      final shiftController =
+          Get.isRegistered<ShiftController>()
+              ? Get.find<ShiftController>()
+              : Get.put(ShiftController());
 
       // print("shiftController.currentShiftId.value ${shiftController.currentShiftId.value}");
       // Ensure shift ID is available
