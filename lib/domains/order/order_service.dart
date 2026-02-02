@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:edifly_pos/core/network/api_client.dart';
 import 'package:edifly_pos/domains/order/models/checkout_response_model.dart';
+import 'package:edifly_pos/domains/order/models/order_detail_model.dart';
 import 'package:edifly_pos/domains/order/models/order_list_model.dart';
 
 class OrderService {

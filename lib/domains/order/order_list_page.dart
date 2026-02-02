@@ -1,5 +1,6 @@
 import 'package:edifly_pos/core/services/printer_service.dart';
 import 'package:edifly_pos/core/utils/currency.dart';
+import 'package:edifly_pos/domains/order/models/order_detail_model.dart';
 import 'package:edifly_pos/domains/order/models/order_list_model.dart';
 import 'package:edifly_pos/domains/order/order_list_controller.dart';
 import 'package:edifly_pos/domains/product/product_model.dart';

@@ -1,5 +1,5 @@
-/// Model untuk Order List Item
-class OrderListItemModel {
+/// Model untuk Order Detail Response
+class OrderDetailModel {
   final int orderId;
   final int outletId;
   final int closingId;
@@ -24,8 +24,10 @@ class OrderListItemModel {
   final String createdBy;
   final String createdAt;
   final String updatedAt;
+  final List<OrderDetailItem> items;
+  final String? printUrl;
 
-  OrderListItemModel({
+  OrderDetailModel({
     required this.orderId,
     required this.outletId,
     required this.closingId,
@@ -50,10 +52,12 @@ class OrderListItemModel {
     required this.createdBy,
     required this.createdAt,
     required this.updatedAt,
+    required this.items,
+    this.printUrl,
   });
 
-  factory OrderListItemModel.fromJson(Map<String, dynamic> json) {
-    return OrderListItemModel(
+  factory OrderDetailModel.fromJson(Map<String, dynamic> json) {
+    return OrderDetailModel(
       orderId: int.tryParse(json['order_id'].toString()) ?? 0,
       outletId: int.tryParse(json['outlet_id'].toString()) ?? 0,
       closingId: int.tryParse(json['closing_id'].toString()) ?? 0,
@@ -78,6 +82,9 @@ class OrderListItemModel {
       createdBy: json['created_by'].toString(),
       createdAt: json['created_at'] ?? '',
       updatedAt: json['updated_at'] ?? '',
+      items:
+          (json['items'] as List<dynamic>?)?.map((e) => OrderDetailItem.fromJson(e)).toList() ?? [],
+      printUrl: json['print_url'],
     );
   }
 
@@ -93,6 +100,50 @@ class OrderListItemModel {
     }
   }
 
-  /// Status color berdasarkan status code
   bool get isCompleted => status == 2;
+}
+
+/// Model untuk Order Detail Item
+class OrderDetailItem {
+  final int idDetail;
+  final int idOrder;
+  final int productId;
+  final String namaProduct;
+  final int qty;
+  final int subTotal;
+  final int discountPct;
+  final int discount;
+  final int totalDetails;
+  final String isVoid;
+  final String? keterangan;
+
+  OrderDetailItem({
+    required this.idDetail,
+    required this.idOrder,
+    required this.productId,
+    required this.namaProduct,
+    required this.qty,
+    required this.subTotal,
+    required this.discountPct,
+    required this.discount,
+    required this.totalDetails,
+    required this.isVoid,
+    this.keterangan,
+  });
+
+  factory OrderDetailItem.fromJson(Map<String, dynamic> json) {
+    return OrderDetailItem(
+      idDetail: int.tryParse(json['id_detail'].toString()) ?? 0,
+      idOrder: int.tryParse(json['id_order'].toString()) ?? 0,
+      productId: int.tryParse(json['product_id'].toString()) ?? 0,
+      namaProduct: json['nama_product'] ?? '',
+      qty: double.tryParse(json['qty'].toString())?.toInt() ?? 0,
+      subTotal: double.tryParse(json['sub_total'].toString())?.toInt() ?? 0,
+      discountPct: double.tryParse(json['discount_pct'].toString())?.toInt() ?? 0,
+      discount: double.tryParse(json['discount'].toString())?.toInt() ?? 0,
+      totalDetails: double.tryParse(json['total_details'].toString())?.toInt() ?? 0,
+      isVoid: json['is_void'].toString(),
+      keterangan: json['keterangan'],
+    );
+  }
 }

@@ -1,3 +1,4 @@
+import 'package:edifly_pos/domains/order/models/order_detail_model.dart';
 import 'package:edifly_pos/domains/order/models/order_list_model.dart';
 import 'package:edifly_pos/domains/order/order_service.dart';
 import 'package:flutter/material.dart';
