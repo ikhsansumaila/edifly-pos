@@ -1,4 +1,5 @@
 import 'package:edifly_pos/app/routes/app_routes.dart';
+import 'package:edifly_pos/core/config/app_theme_config.dart';
 import 'package:edifly_pos/core/services/printer_service.dart';
 import 'package:edifly_pos/core/utils/currency.dart';
 import 'package:edifly_pos/domains/product/product_model.dart';
@@ -271,7 +272,7 @@ class ReceiptDialog extends StatelessWidget {
                             icon: const Icon(Icons.settings),
                             label: const Text('Atur Printer'),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF5B3A1E),
+                              backgroundColor: AppThemeConfig.primaryColor,
                               foregroundColor: Colors.white,
                             ),
                           ),
@@ -298,7 +299,7 @@ class ReceiptDialog extends StatelessWidget {
                 icon: const Icon(Icons.print),
                 label: const Text("Cetak Struk"),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF5B3A1E),
+                  backgroundColor: AppThemeConfig.primaryColor,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),

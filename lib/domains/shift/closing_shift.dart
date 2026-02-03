@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:edifly_pos/app/routes/app_routes.dart';
+import 'package:edifly_pos/core/config/app_theme_config.dart';
 import 'package:edifly_pos/core/utils/currency.dart';
 import 'package:edifly_pos/core/utils/terbilang.dart';
 import 'package:edifly_pos/domains/auth/auth_controller.dart';
@@ -136,7 +137,7 @@ class _ClosingShiftPageState extends State<ClosingShiftPage> {
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
-                  color: const Color(0xFF4D3B2A), // Warna cokelat tua
+                  color: AppThemeConfig.primaryColor, // Warna cokelat tua
                   child: Column(
                     children: [
                       const Icon(Icons.vpn_key, color: Colors.white70, size: 40),
@@ -386,7 +387,7 @@ class _ClosingShiftPageState extends State<ClosingShiftPage> {
                 controller.closeShift(actualCash: cash, notes: _noteController.text);
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF4D3B2A),
+                backgroundColor: AppThemeConfig.primaryColor,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),

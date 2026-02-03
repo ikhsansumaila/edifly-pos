@@ -1,3 +1,4 @@
+import 'package:edifly_pos/core/config/app_theme_config.dart';
 import 'package:edifly_pos/core/services/printer_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -33,7 +34,7 @@ class _PrinterSettingsPageState extends State<PrinterSettingsPage> {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Pengaturan Printer'),
-          backgroundColor: const Color(0xFF5B3A1E),
+          backgroundColor: AppThemeConfig.primaryColor,
           foregroundColor: Colors.white,
           bottom: const TabBar(
             indicatorColor: Colors.white,
@@ -190,7 +191,7 @@ class _PrinterSettingsPageState extends State<PrinterSettingsPage> {
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             style: ElevatedButton.styleFrom(
-              backgroundColor: isConnected ? const Color(0xFF5B3A1E) : Colors.grey,
+              backgroundColor: isConnected ? AppThemeConfig.primaryColor : Colors.grey,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 14),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -218,7 +219,7 @@ class _PrinterSettingsPageState extends State<PrinterSettingsPage> {
                   : const Icon(Icons.bluetooth_searching),
           label: Text(isScanning ? 'Mencari...' : 'Cari Printer'),
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF5B3A1E),
+            backgroundColor: AppThemeConfig.primaryColor,
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(vertical: 14),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -309,7 +310,7 @@ class _PrinterSettingsPageState extends State<PrinterSettingsPage> {
         return ListTile(
           leading: Icon(
             isPaired ? Icons.bluetooth_connected : Icons.bluetooth,
-            color: const Color(0xFF5B3A1E),
+            color: AppThemeConfig.primaryColor,
           ),
           title: Text(device.name),
           subtitle: Text(device.address),
@@ -322,7 +323,10 @@ class _PrinterSettingsPageState extends State<PrinterSettingsPage> {
                 const SizedBox(
                   width: 24,
                   height: 24,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF5B3A1E)),
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: AppThemeConfig.primaryColor,
+                  ),
                 )
               else
                 TextButton(
@@ -380,7 +384,7 @@ class _PrinterSettingsPageState extends State<PrinterSettingsPage> {
                   onChanged: (val) {
                     if (val != null) printerService.setPrinterType(val);
                   },
-                  activeColor: const Color(0xFF5B3A1E),
+                  activeColor: AppThemeConfig.primaryColor,
                   contentPadding: EdgeInsets.zero,
                 ),
                 Divider(height: 1, color: Colors.grey.shade300),
@@ -392,7 +396,7 @@ class _PrinterSettingsPageState extends State<PrinterSettingsPage> {
                   onChanged: (val) {
                     if (val != null) printerService.setPrinterType(val);
                   },
-                  activeColor: const Color(0xFF5B3A1E),
+                  activeColor: AppThemeConfig.primaryColor,
                   contentPadding: EdgeInsets.zero,
                 ),
               ],
@@ -428,7 +432,7 @@ class _PrinterSettingsPageState extends State<PrinterSettingsPage> {
                   onChanged: (val) {
                     if (val != null) printerService.setPaperSize(58);
                   },
-                  activeColor: const Color(0xFF5B3A1E),
+                  activeColor: AppThemeConfig.primaryColor,
                   contentPadding: EdgeInsets.zero,
                 ),
                 Divider(height: 1, color: Colors.grey.shade300),
@@ -439,7 +443,7 @@ class _PrinterSettingsPageState extends State<PrinterSettingsPage> {
                   onChanged: (val) {
                     if (val != null) printerService.setPaperSize(80);
                   },
-                  activeColor: const Color(0xFF5B3A1E),
+                  activeColor: AppThemeConfig.primaryColor,
                   contentPadding: EdgeInsets.zero,
                 ),
               ],

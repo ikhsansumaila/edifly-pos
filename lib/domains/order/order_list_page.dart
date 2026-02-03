@@ -1,4 +1,5 @@
 import 'package:edifly_pos/app/routes/app_routes.dart';
+import 'package:edifly_pos/core/config/app_theme_config.dart';
 import 'package:edifly_pos/core/services/printer_service.dart';
 import 'package:edifly_pos/core/utils/currency.dart';
 import 'package:edifly_pos/domains/auth/auth_controller.dart';
@@ -91,7 +92,7 @@ class OrderListPage extends StatelessWidget {
                   onPressed: () => controller.fetchOrders(),
                   icon: const Icon(Icons.refresh),
                   tooltip: 'Refresh',
-                  color: const Color(0xFF5B3A1E),
+                  color: AppThemeConfig.primaryColor,
                 ),
               ],
             ),
@@ -205,7 +206,7 @@ class _OrderCard extends StatelessWidget {
                     style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF5B3A1E),
+                      color: AppThemeConfig.primaryColor,
                     ),
                   ),
 
@@ -308,7 +309,7 @@ class _OrderCard extends StatelessWidget {
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF5B3A1E),
+                      color: AppThemeConfig.primaryColor,
                     ),
                   ),
                 ],
@@ -384,7 +385,7 @@ class _OrderDetailSheet extends StatelessWidget {
                                     style: const TextStyle(
                                       fontSize: 18,
                                       fontWeight: FontWeight.bold,
-                                      color: Color(0xFF5B3A1E),
+                                      color: AppThemeConfig.primaryColor,
                                     ),
                                   ),
                                   const SizedBox(height: 4),
@@ -585,7 +586,7 @@ class _OrderDetailSheet extends StatelessWidget {
                             style: const TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
-                              color: Color(0xFF5B3A1E),
+                              color: AppThemeConfig.primaryColor,
                             ),
                           ),
                         ],
@@ -625,7 +626,7 @@ class _OrderDetailSheet extends StatelessWidget {
                               icon: const Icon(Icons.print, size: 18),
                               label: const Text('Cetak Struk'),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF5B3A1E),
+                                backgroundColor: AppThemeConfig.primaryColor,
                                 foregroundColor: Colors.white,
                                 padding: const EdgeInsets.symmetric(vertical: 12),
                                 shape: RoundedRectangleBorder(

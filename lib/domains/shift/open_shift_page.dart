@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:edifly_pos/app/routes/app_routes.dart';
+import 'package:edifly_pos/core/config/app_theme_config.dart';
 import 'package:edifly_pos/core/utils/currency.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -53,8 +54,8 @@ class OpenShiftPage extends StatelessWidget {
                           Container(
                             width: double.infinity,
                             padding: const EdgeInsets.symmetric(vertical: 24),
-                            decoration: const BoxDecoration(
-                              color: Color(0xFF5B4028),
+                            decoration: BoxDecoration(
+                              color: AppThemeConfig.primaryColor,
                               borderRadius: BorderRadius.only(
                                 topLeft: Radius.circular(24),
                                 topRight: Radius.circular(24),
@@ -105,7 +106,7 @@ class OpenShiftPage extends StatelessWidget {
                                     color: Colors.white,
                                     borderRadius: BorderRadius.circular(16),
                                     border: Border.all(
-                                      color: const Color(0xFF5B4028).withAlpha(40),
+                                      color: AppThemeConfig.primaryColor.withAlpha(40),
                                     ),
                                   ),
                                   child: Row(
@@ -125,10 +126,10 @@ class OpenShiftPage extends StatelessWidget {
                                           Obx(
                                             () => Text(
                                               controller.userName.value,
-                                              style: const TextStyle(
+                                              style: TextStyle(
                                                 fontWeight: FontWeight.bold,
                                                 fontSize: 13,
-                                                color: Color(0xFF5B4028),
+                                                color: AppThemeConfig.primaryColor,
                                               ),
                                             ),
                                           ),
@@ -199,7 +200,7 @@ class OpenShiftPage extends StatelessWidget {
                                               ? null
                                               : () => controller.openShift(),
                                       style: ElevatedButton.styleFrom(
-                                        backgroundColor: const Color(0xFF5B4028),
+                                        backgroundColor: AppThemeConfig.primaryColor,
                                         foregroundColor: Colors.white,
                                         shape: RoundedRectangleBorder(
                                           borderRadius: BorderRadius.circular(12),
@@ -267,9 +268,11 @@ class OpenShiftPage extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
-            color: isSelected ? const Color(0xFF5B4028) : Colors.white,
+            color: isSelected ? AppThemeConfig.primaryColor : Colors.white,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: isSelected ? const Color(0xFF5B4028) : Colors.grey.shade300),
+            border: Border.all(
+              color: isSelected ? AppThemeConfig.primaryColor : Colors.grey.shade300,
+            ),
           ),
           child: Center(
             child: Text(

@@ -1,3 +1,4 @@
+import 'package:edifly_pos/core/config/app_theme_config.dart';
 import 'package:edifly_pos/core/storage/auth_storage.dart';
 import 'package:edifly_pos/domains/order/order_service.dart';
 import 'package:edifly_pos/domains/product/product_model.dart';
@@ -116,7 +117,7 @@ class OrderProcessController extends GetxController {
       textConfirm: 'OK',
       onConfirm: () => Get.back(),
       confirmTextColor: Colors.white,
-      buttonColor: Colors.brown,
+      buttonColor: AppThemeConfig.primaryColor,
     );
   }
 

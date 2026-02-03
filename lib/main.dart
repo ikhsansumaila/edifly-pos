@@ -1,5 +1,6 @@
 import 'package:edifly_pos/app/routes/app_pages.dart';
 import 'package:edifly_pos/app/routes/app_routes.dart';
+import 'package:edifly_pos/core/config/app_theme_config.dart';
 import 'package:edifly_pos/core/services/printer_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -38,13 +39,13 @@ class PosApp extends StatelessWidget {
       theme: ThemeData(
         useMaterial3: false,
         brightness: Brightness.light,
-        primaryColor: const Color(0xFF4A3728), // Brown
-        scaffoldBackgroundColor: Colors.white,
+        primaryColor: AppThemeConfig.primaryColor,
+        scaffoldBackgroundColor: AppThemeConfig.scaffoldBackgroundColor,
         fontFamily: 'Roboto',
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF4A3728),
-            foregroundColor: Colors.white,
+            backgroundColor: AppThemeConfig.primaryColor,
+            foregroundColor: AppThemeConfig.onPrimaryColor,
           ),
         ),
       ),

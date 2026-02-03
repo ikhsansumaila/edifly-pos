@@ -1,3 +1,4 @@
+import 'package:edifly_pos/core/config/app_theme_config.dart';
 import 'package:edifly_pos/core/utils/currency.dart';
 import 'package:flutter/material.dart';
 
@@ -70,7 +71,7 @@ class ConfirmationDialog extends StatelessWidget {
                   ElevatedButton(
                     onPressed: onConfirm,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF5B3A1E), // Brown color
+                      backgroundColor: AppThemeConfig.primaryColor, // Brown color
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),

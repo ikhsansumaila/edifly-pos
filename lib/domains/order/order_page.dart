@@ -1,4 +1,5 @@
 import 'package:edifly_pos/app/routes/app_routes.dart';
+import 'package:edifly_pos/core/config/app_theme_config.dart';
 import 'package:edifly_pos/core/utils/currency.dart';
 import 'package:edifly_pos/domains/auth/auth_controller.dart';
 import 'package:edifly_pos/domains/order/order_process_controller.dart';
@@ -378,7 +379,7 @@ class PosOrderPage extends StatelessWidget {
                           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                         ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: isValid ? const Color(0xFF5B3A1E) : Colors.grey.shade400,
+                  backgroundColor: isValid ? AppThemeConfig.primaryColor : Colors.grey.shade400,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   elevation: isValid ? 2 : 0,
