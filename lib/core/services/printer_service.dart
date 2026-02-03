@@ -595,7 +595,7 @@ class PrinterService extends GetxController {
           paymentMethod: paymentMethod,
           channel: channel,
           cashAmount: cashAmount,
-          printUrl: printUrl,
+          printUrl: 'https://www.instagram.com/dimonggoin?igsh=Zmc1YmFiNDc3eGV5',
           orderNo: orderNo,
         );
       } else {
@@ -607,7 +607,7 @@ class PrinterService extends GetxController {
           paymentMethod: paymentMethod,
           channel: channel,
           cashAmount: cashAmount,
-          printUrl: printUrl,
+          printUrl: 'https://www.instagram.com/dimonggoin?igsh=Zmc1YmFiNDc3eGV5',
           orderNo: orderNo,
         );
       }
