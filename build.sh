@@ -1,37 +1,16 @@
 #!/bin/bash
 
 # ============================================
-# Edifly POS - Build Script
+# Edifly POS - Smart Build Script
 # ============================================
 # Usage:
-#   ./build.sh [mode] [increment] [stage]
+#   ./build.sh [mode] [increment] [stage] [target_version]
 #
-# Modes:
-#   debug   - Build debug APK
-#   release - Build release APK
-#   both    - Build both debug and release
-#
-# Increment (optional):
-#   none    - No version increment (default)
-#   build   - Increment build number (0.0.4+1 → 0.0.4+2)
-#   patch   - Increment patch version (0.0.4 → 0.0.5)
-#   minor   - Increment minor version (0.0.4 → 0.1.0)
-#   major   - Increment major version (0.0.4 → 1.0.0)
-#
-# Stage (optional):
-#   dev     - Development version (0.0.4-dev)
-#   alpha   - Alpha version (0.0.4-alpha)
-#   beta    - Beta version (0.0.4-beta)
-#   rc      - Release candidate (0.0.4-rc)
-#   prod    - Production version (0.0.4) - no suffix
-#   keep    - Keep current stage (default)
-#
-# Examples:
-#   ./build.sh debug                    # Build debug tanpa increment
-#   ./build.sh release patch            # Build release + increment patch
-#   ./build.sh release patch dev        # Build release + increment patch + set ke dev
-#   ./build.sh both build beta          # Build keduanya + increment build + set ke beta
-#   ./build.sh release none prod        # Build release + set ke production (hapus suffix)
+# Key Features:
+#   - Separate version history for DEV and PROD
+#   - Auto-switch API URLs
+#   - Auto-update App Name (POS Retail vs POS Retail (DEV))
+#   - Auto-clean project
 # ============================================
 
 set -e
@@ -43,76 +22,56 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 PURPLE='\033[0;35m'
 CYAN='\033[0;36m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
-# Get script directory
+# Paths
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PUBSPEC_FILE="$SCRIPT_DIR/pubspec.yaml"
+API_CONFIG_FILE="$SCRIPT_DIR/lib/core/network/api_config.dart"
 OUTPUT_DIR="$SCRIPT_DIR/build/app/outputs/flutter-apk"
 
-# Default values
+# App Config
+BASE_APP_NAME="Dimonggoin Kasir"
+ANDROID_MANIFEST="$SCRIPT_DIR/android/app/src/main/AndroidManifest.xml"
+IOS_INFO_PLIST="$SCRIPT_DIR/ios/Runner/Info.plist"
+
+# Version History Storage
+VERSION_DIR="$SCRIPT_DIR/.build_versions"
+mkdir -p "$VERSION_DIR"
+DEV_VERSION_FILE="$VERSION_DIR/dev_version"
+PROD_VERSION_FILE="$VERSION_DIR/prod_version"
+
+# API URLs
+DEV_API_URL="https://prototype.edifly-dev.com/pos/api"
+PROD_API_URL="https://pos.avconindonesia.com/api"
+
+# Default Arguments
 BUILD_MODE="${1:-debug}"
 INCREMENT_TYPE="${2:-none}"
 STAGE="${3:-keep}"
+TARGET_VERSION="${4:-}"
 
-# Function to print colored messages
-print_info() {
-    echo -e "${BLUE}ℹ️  $1${NC}"
-}
+# ==============================================================================
+# HELPER FUNCTIONS
+# ==============================================================================
 
-print_success() {
-    echo -e "${GREEN}✅ $1${NC}"
-}
+print_info() { echo -e "${BLUE}ℹ️  $1${NC}"; }
+print_success() { echo -e "${GREEN}✅ $1${NC}"; }
+print_warning() { echo -e "${YELLOW}⚠️  $1${NC}"; }
+print_error() { echo -e "${RED}❌ $1${NC}"; }
 
-print_warning() {
-    echo -e "${YELLOW}⚠️  $1${NC}"
-}
-
-print_error() {
-    echo -e "${RED}❌ $1${NC}"
-}
-
-print_stage() {
-    local stage="$1"
-    case "$stage" in
-        dev)
-            echo -e "${PURPLE}[DEV]${NC}"
-            ;;
-        alpha)
-            echo -e "${CYAN}[ALPHA]${NC}"
-            ;;
-        beta)
-            echo -e "${YELLOW}[BETA]${NC}"
-            ;;
-        rc)
-            echo -e "${BLUE}[RC]${NC}"
-            ;;
-        prod|"")
-            echo -e "${GREEN}[PROD]${NC}"
-            ;;
-    esac
-}
-
-# Function to get current version from pubspec.yaml
-get_current_version() {
+get_pubspec_version() {
     grep "^version:" "$PUBSPEC_FILE" | sed 's/version: //'
 }
 
-# Function to parse version components
-# Supports: 0.0.4+1, 0.0.4-dev+1, 0.0.4-beta+1, etc.
 parse_version() {
     local full_version="$1"
     
-    # Split by + to get version and build number
     local version_with_stage=$(echo "$full_version" | cut -d'+' -f1)
-    BUILD_NUMBER=$(echo "$full_version" | cut -d'+' -f2)
+    BUILD_NUMBER=$(echo "$full_version" | cut -d'+' -f2 -s)
     
-    # If no build number, default to 1
-    if [ "$version_with_stage" == "$BUILD_NUMBER" ]; then
-        BUILD_NUMBER=1
-    fi
+    if [ -z "$BUILD_NUMBER" ]; then BUILD_NUMBER=1; fi
     
-    # Check if there's a stage suffix (e.g., -dev, -beta)
     if [[ "$version_with_stage" == *"-"* ]]; then
         VERSION_PART=$(echo "$version_with_stage" | cut -d'-' -f1)
         CURRENT_STAGE=$(echo "$version_with_stage" | cut -d'-' -f2)
@@ -121,68 +80,11 @@ parse_version() {
         CURRENT_STAGE=""
     fi
     
-    # Split version part by .
     MAJOR=$(echo "$VERSION_PART" | cut -d'.' -f1)
     MINOR=$(echo "$VERSION_PART" | cut -d'.' -f2)
     PATCH=$(echo "$VERSION_PART" | cut -d'.' -f3)
 }
 
-# Function to increment version
-increment_version() {
-    local increment_type="$1"
-    
-    case "$increment_type" in
-        build)
-            BUILD_NUMBER=$((BUILD_NUMBER + 1))
-            ;;
-        patch)
-            PATCH=$((PATCH + 1))
-            BUILD_NUMBER=$((BUILD_NUMBER + 1))
-            ;;
-        minor)
-            MINOR=$((MINOR + 1))
-            PATCH=0
-            BUILD_NUMBER=$((BUILD_NUMBER + 1))
-            ;;
-        major)
-            MAJOR=$((MAJOR + 1))
-            MINOR=0
-            PATCH=0
-            BUILD_NUMBER=$((BUILD_NUMBER + 1))
-            ;;
-        none)
-            # No increment
-            ;;
-        *)
-            print_error "Unknown increment type: $increment_type"
-            exit 1
-            ;;
-    esac
-}
-
-# Function to set stage
-set_stage() {
-    local stage="$1"
-    
-    case "$stage" in
-        dev|alpha|beta|rc)
-            CURRENT_STAGE="$stage"
-            ;;
-        prod)
-            CURRENT_STAGE=""
-            ;;
-        keep)
-            # Keep current stage
-            ;;
-        *)
-            print_error "Unknown stage: $stage"
-            echo "Valid stages: dev, alpha, beta, rc, prod, keep"
-            exit 1
-            ;;
-    esac
-}
-
-# Function to build new version string
 build_version_string() {
     if [ -n "$CURRENT_STAGE" ]; then
         NEW_VERSION="$MAJOR.$MINOR.$PATCH-$CURRENT_STAGE+$BUILD_NUMBER"
@@ -193,206 +95,201 @@ build_version_string() {
     fi
 }
 
-# Function to update pubspec.yaml with new version
+increment_version() {
+    local type="$1"
+    case "$type" in
+        build) BUILD_NUMBER=$((BUILD_NUMBER + 1)) ;;
+        patch) PATCH=$((PATCH + 1)); BUILD_NUMBER=$((BUILD_NUMBER + 1)) ;;
+        minor) MINOR=$((MINOR + 1)); PATCH=0; BUILD_NUMBER=$((BUILD_NUMBER + 1)) ;;
+        major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0; BUILD_NUMBER=$((BUILD_NUMBER + 1)) ;;
+        none) ;;
+        *) print_error "Unknown increment type: $type"; exit 1 ;;
+    esac
+}
+
 update_pubspec_version() {
-    local new_version="$1"
-    
-    # Use sed to replace version line
+    local new_ver="$1"
     if [[ "$OSTYPE" == "darwin"* ]]; then
-        # macOS
-        sed -i '' "s/^version: .*/version: $new_version/" "$PUBSPEC_FILE"
+        sed -i '' "s/^version: .*/version: $new_ver/" "$PUBSPEC_FILE"
     else
-        # Linux
-        sed -i "s/^version: .*/version: $new_version/" "$PUBSPEC_FILE"
+        sed -i "s/^version: .*/version: $new_ver/" "$PUBSPEC_FILE"
     fi
 }
 
-# Function to build APK
-build_apk() {
-    local mode="$1"
+update_api_config() {
+    local track="$1"
+    local stage_name="$2"
     
-    print_info "Building $mode APK..."
-    
-    cd "$SCRIPT_DIR"
-    flutter build apk --$mode
-    
-    if [ $? -eq 0 ]; then
-        print_success "Build $mode berhasil!"
+    local target_url=""
+    local mode_name=""
+
+    if [ "$track" == "prod" ]; then
+        target_url="$PROD_API_URL"
+        mode_name="PRODUCTION"
     else
-        print_error "Build $mode gagal!"
-        exit 1
+        target_url="$DEV_API_URL"
+        mode_name="DEVELOPMENT ($stage_name)"
+    fi
+
+    print_info "Set API untuk $mode_name"
+    echo "const API_BASE_URL = '$target_url';" > "$API_CONFIG_FILE"
+}
+
+update_app_name() {
+    local track="$1"
+    local stage_name="$2"
+    local new_name="$BASE_APP_NAME"
+    
+    # If not production, append stage (e.g., DEV, ALPHA)
+    if [ "$track" != "prod" ]; then
+         if [ -n "$stage_name" ]; then
+             local stage_upper=$(echo "$stage_name" | tr '[:lower:]' '[:upper:]')
+             new_name="$BASE_APP_NAME ($stage_upper)"
+         else
+             new_name="$BASE_APP_NAME (DEV)"
+         fi
+    fi
+    
+    print_info "Update App Name: $new_name"
+    
+    # Update Android Manifest and iOS Info.plist
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        sed -i '' "s/android:label=\".*\"/android:label=\"$new_name\"/" "$ANDROID_MANIFEST"
+        sed -i '' "/CFBundleDisplayName/{n;s/<string>.*<\/string>/<string>$new_name<\/string>/;}" "$IOS_INFO_PLIST"
+    else
+        sed -i "s/android:label=\".*\"/android:label=\"$new_name\"/" "$ANDROID_MANIFEST"
+        sed -i "/CFBundleDisplayName/{n;s/<string>.*<\/string>/<string>$new_name<\/string>/;}" "$IOS_INFO_PLIST"
     fi
 }
 
-# Function to show build result
-show_result() {
-    local stage_display=$(print_stage "$CURRENT_STAGE")
-    
-    echo ""
-    echo "============================================"
-    echo -e "${GREEN}🎉 BUILD SELESAI!${NC} $stage_display"
-    echo "============================================"
-    echo ""
-    echo -e "📌 Versi: ${CYAN}$NEW_VERSION${NC}"
-    echo ""
-    
-    if [ "$BUILD_MODE" == "debug" ] || [ "$BUILD_MODE" == "both" ]; then
-        local debug_file="$OUTPUT_DIR/edifly-pos-v${NEW_VERSION_DISPLAY}-debug.apk"
-        if [ -f "$debug_file" ]; then
-            local debug_size=$(du -h "$debug_file" | cut -f1)
-            echo -e "📦 ${YELLOW}Debug APK:${NC}"
-            echo "   File: edifly-pos-v${NEW_VERSION_DISPLAY}-debug.apk"
-            echo "   Size: $debug_size"
-            echo "   Path: $debug_file"
-            echo ""
-        fi
-    fi
-    
-    if [ "$BUILD_MODE" == "release" ] || [ "$BUILD_MODE" == "both" ]; then
-        local release_file="$OUTPUT_DIR/edifly-pos-v${NEW_VERSION_DISPLAY}-release.apk"
-        if [ -f "$release_file" ]; then
-            local release_size=$(du -h "$release_file" | cut -f1)
-            echo -e "📦 ${GREEN}Release APK:${NC}"
-            echo "   File: edifly-pos-v${NEW_VERSION_DISPLAY}-release.apk"
-            echo "   Size: $release_size"
-            echo "   Path: $release_file"
-            echo ""
-        fi
-    fi
-    
-    echo "============================================"
-}
+# ==============================================================================
+# MAIN LOGIC
+# ==============================================================================
 
-# Main script
 main() {
     echo ""
     echo "============================================"
-    echo -e "${BLUE}🚀 EDIFLY POS - BUILD SCRIPT${NC}"
+    echo -e "${BLUE}🚀 EDIFLY POS - SMART BUILD${NC}"
     echo "============================================"
     echo ""
+
+    # 1. Determine TRACK
+    TRACK=""
+    EFFECTIVE_STAGE=""
     
-    # Validate build mode
-    if [[ ! "$BUILD_MODE" =~ ^(debug|release|both)$ ]]; then
-        print_error "Invalid build mode: $BUILD_MODE"
-        echo "Valid modes: debug, release, both"
-        exit 1
-    fi
+    PUBSPEC_VER=$(get_pubspec_version)
     
-    # Validate increment type
-    if [[ ! "$INCREMENT_TYPE" =~ ^(none|build|patch|minor|major)$ ]]; then
-        print_error "Invalid increment type: $INCREMENT_TYPE"
-        echo "Valid types: none, build, patch, minor, major"
-        exit 1
-    fi
-    
-    # Validate stage
-    if [[ ! "$STAGE" =~ ^(dev|alpha|beta|rc|prod|keep)$ ]]; then
-        print_error "Invalid stage: $STAGE"
-        echo "Valid stages: dev, alpha, beta, rc, prod, keep"
-        exit 1
-    fi
-    
-    # Get and parse current version
-    CURRENT_VERSION=$(get_current_version)
-    parse_version "$CURRENT_VERSION"
-    
-    print_info "Versi saat ini: $CURRENT_VERSION"
-    
-    # Show current stage
-    if [ -n "$CURRENT_STAGE" ]; then
-        echo -e "   Stage: ${PURPLE}$CURRENT_STAGE${NC}"
+    if [[ "$STAGE" =~ ^(dev|alpha|beta|rc)$ ]]; then
+        TRACK="dev"
+        EFFECTIVE_STAGE="$STAGE"
+    elif [[ "$STAGE" == "prod" ]]; then
+        TRACK="prod"
+        EFFECTIVE_STAGE=""
+    elif [[ "$STAGE" == "keep" ]]; then
+        if [[ "$PUBSPEC_VER" == *"-"* ]]; then
+            TRACK="dev"
+            EFFECTIVE_STAGE=$(echo "$PUBSPEC_VER" | cut -d'-' -f2 | cut -d'+' -f1)
+        else
+            TRACK="prod"
+            EFFECTIVE_STAGE=""
+        fi
+        print_info "Auto-detect track: $TRACK"
     else
-        echo -e "   Stage: ${GREEN}production${NC}"
+        print_error "Invalid stage: $STAGE"
+        exit 1
+    fi
+
+    # 2. Select Version File
+    if [ "$TRACK" == "prod" ]; then
+        TRACK_FILE="$PROD_VERSION_FILE"
+    else
+        TRACK_FILE="$DEV_VERSION_FILE"
+    fi
+
+    # 3. Read Start Version
+    START_VERSION=""
+    
+    if [ -n "$TARGET_VERSION" ]; then
+        print_info "Using Manual Target Version: $TARGET_VERSION"
+        START_VERSION="$TARGET_VERSION"
+    elif [ -f "$TRACK_FILE" ]; then
+        START_VERSION=$(cat "$TRACK_FILE")
+        print_info "Loaded stored $TRACK version: $START_VERSION"
+    else
+        parse_version "$PUBSPEC_VER"
+        
+        if [ "$TRACK" == "prod" ]; then
+            CURRENT_STAGE="" 
+        elif [ "$TRACK" == "dev" ] && [ -z "$CURRENT_STAGE" ]; then
+            CURRENT_STAGE="dev"
+        fi
+        
+        build_version_string
+        START_VERSION="$NEW_VERSION"
+        print_warning "No stored version for $TRACK. Initializing from pubspec: $START_VERSION"
+    fi
+
+    # 4. Process Increment
+    parse_version "$START_VERSION"
+    
+    if [ "$STAGE" != "keep" ]; then
+         CURRENT_STAGE="$EFFECTIVE_STAGE"
     fi
     
-    # Increment version if requested
     if [ "$INCREMENT_TYPE" != "none" ]; then
         increment_version "$INCREMENT_TYPE"
-        print_info "Increment: $INCREMENT_TYPE"
+        print_info "Incrementing detected: $INCREMENT_TYPE"
     fi
-    
-    # Set stage if requested
-    if [ "$STAGE" != "keep" ]; then
-        set_stage "$STAGE"
-        print_info "Stage: $STAGE"
-    fi
-    
-    # Build version string
+
+    # 5. Build Final String & Save
     build_version_string
     
-    if [ "$CURRENT_VERSION" != "$NEW_VERSION" ]; then
-        print_info "Versi baru: $NEW_VERSION"
-        
-        # Update pubspec.yaml
+    echo "$NEW_VERSION" > "$TRACK_FILE"
+    
+    if [ "$PUBSPEC_VER" != "$NEW_VERSION" ]; then
         update_pubspec_version "$NEW_VERSION"
-        print_success "pubspec.yaml diupdate ke versi $NEW_VERSION"
+        print_success "Pubspec updated: $NEW_VERSION"
     else
-        print_info "Tidak ada perubahan versi"
+        print_info "Version unchanged"
     fi
     
+    echo -e "Saved to history: ${BLUE}$TRACK_FILE${NC}"
+
+    # 6. Config Updates (API, App Name) & Clean
     echo ""
-    print_info "Build mode: $BUILD_MODE"
+    update_api_config "$TRACK" "$CURRENT_STAGE"
+    update_app_name "$TRACK" "$CURRENT_STAGE"
+    
     echo ""
+    print_info "Cleaning project..."
+    flutter clean > /dev/null
+    flutter pub get > /dev/null
+    print_success "Clean & Pub Get done"
+
+    # 7. Build
+    echo ""
+    print_info "Building ($BUILD_MODE)..."
     
-    # Build based on mode
-    case "$BUILD_MODE" in
-        debug)
-            build_apk "debug"
-            ;;
-        release)
-            build_apk "release"
-            ;;
-        both)
-            build_apk "debug"
-            echo ""
-            build_apk "release"
-            ;;
-    esac
+    cd "$SCRIPT_DIR"
     
-    # Show result
-    show_result
+    if [ "$BUILD_MODE" == "both" ]; then
+        flutter build apk --debug
+        flutter build apk --release
+    else
+        flutter build apk --$BUILD_MODE
+    fi
+
+    # 8. Result
+    echo ""
+    echo "============================================"
+    echo "🎉 VERSION: $NEW_VERSION"
+    echo "============================================"
+    if [[ "$BUILD_MODE" =~ (release|both) ]]; then
+        echo -e "📦 Release: build/app/outputs/flutter-apk/app-release.apk"
+    fi
+    if [[ "$BUILD_MODE" =~ (debug|both) ]]; then
+        echo -e "📦 Debug:   build/app/outputs/flutter-apk/app-debug.apk"
+    fi
 }
 
-# Show help
-if [ "$1" == "-h" ] || [ "$1" == "--help" ]; then
-    echo ""
-    echo "Usage: ./build.sh [mode] [increment] [stage]"
-    echo ""
-    echo "Modes:"
-    echo "  debug   - Build debug APK"
-    echo "  release - Build release APK"
-    echo "  both    - Build both debug and release"
-    echo ""
-    echo "Increment (optional):"
-    echo "  none    - No version increment (default)"
-    echo "  build   - Increment build number (0.0.4+1 → 0.0.4+2)"
-    echo "  patch   - Increment patch version (0.0.4 → 0.0.5)"
-    echo "  minor   - Increment minor version (0.0.4 → 0.1.0)"
-    echo "  major   - Increment major version (0.0.4 → 1.0.0)"
-    echo ""
-    echo "Stage (optional):"
-    echo "  dev     - Development version (0.0.4-dev)"
-    echo "  alpha   - Alpha version (0.0.4-alpha)"
-    echo "  beta    - Beta version (0.0.4-beta)"
-    echo "  rc      - Release candidate (0.0.4-rc)"
-    echo "  prod    - Production version (0.0.4) - removes suffix"
-    echo "  keep    - Keep current stage (default)"
-    echo ""
-    echo "Examples:"
-    echo "  ./build.sh debug                    # Build debug tanpa increment"
-    echo "  ./build.sh release patch            # Build release + increment patch"
-    echo "  ./build.sh release patch dev        # Build release + patch + set dev stage"
-    echo "  ./build.sh both build beta          # Build both + build number + set beta"
-    echo "  ./build.sh release none prod        # Build release + set to production"
-    echo ""
-    echo "Version Flow Example:"
-    echo "  0.0.4-dev+1  →  ./build.sh release patch dev   →  0.0.5-dev+2"
-    echo "  0.0.5-dev+2  →  ./build.sh release none beta   →  0.0.5-beta+2"
-    echo "  0.0.5-beta+2 →  ./build.sh release build rc    →  0.0.5-rc+3"
-    echo "  0.0.5-rc+3   →  ./build.sh release none prod   →  0.0.5+3"
-    echo ""
-    exit 0
-fi
-
-# Run main
 main

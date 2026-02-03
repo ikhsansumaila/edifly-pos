@@ -42,8 +42,8 @@ android {
         val variant = this
         variant.outputs.all {
             val output = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
-            val appName = "ediflypos"
             val versionName = variant.versionName
+            val appName = if (versionName.contains("-")) "ediflypos" else "dimonggoin"
             val buildType = variant.buildType.name
             output.outputFileName = "${appName}-v${versionName}-${buildType}.apk"
         }

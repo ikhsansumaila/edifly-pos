@@ -26,111 +26,86 @@ flutter run
 flutter run --release
 ```
 
-## 📦 Build APK
+## 📦 Smart Build System
 
-Project ini memiliki script build otomatis dengan fitur:
-- Auto-increment versi
-- Stage management (dev, alpha, beta, rc, prod)
-- Rename APK otomatis sesuai format: `edifly-pos-v{version}-{mode}.apk`
+Project ini menggunakan sistem **Smart Build** yang memisahkan histori versi antara **Development** dan **Production**, serta otomatis mengatur konfigurasi API.
+
+### Fitur Utama
+1.  **Dual-Track Versioning**: 
+    -   Histori versi **Dev** dan **Prod** disimpan terpisah.
+    -   Contoh: Anda bisa sedang mengerjakan `0.2.5-dev` sementara Production stabil di `1.1.0`. Script akan mengingat versi terakhir masing-masing track.
+2.  **Auto API Config**: 
+    -   Script otomatis mengubah `lib/core/network/api_config.dart`.
+    -   Stage `dev/alpha/beta/rc` → Menggunakan **URL DEV**.
+    -   Stage `prod` → Menggunakan **URL PRODUCTION**.
+3.  **Auto Clean**:
+    -   Otomatis menjalankan `flutter clean` dan `flutter pub get` sebelum build untuk mencegah cache issue.
+4.  **Auto App Rename**:
+    -   Otomatis mengubah nama aplikasi di launcher.
+    -   **Prod**: `Dimonggoin Kasir`
+    -   **Dev**: `Dimonggoin Kasir (DEV)`
 
 ### Cara Penggunaan
 
 ```bash
-# Format
-./build.sh [mode] [increment] [stage]
+./build.sh [mode] [increment] [stage] [target_version]
+```
 
-# Lihat bantuan
-./build.sh --help
+**Argument:**
+1.  **mode**: `debug` | `release` | `both`
+2.  **increment**: `none` | `build` | `patch` | `minor` | `major`
+3.  **stage**: `dev` | `alpha` | `beta` | `rc` | `prod` | `keep`
+4.  **target_version** (Opsional): Paksa set ke versi tertentu, mengabaikan histori.
 
-# Build tanpa increment versi
-./build.sh debug              # Build debug saja
-./build.sh release            # Build release saja
-./build.sh both               # Build keduanya
+### Contoh Skenario
 
-# Build dengan increment versi
-./build.sh release patch              # Release + increment patch
-./build.sh release patch dev          # Release + patch + set ke dev stage
-./build.sh both build beta            # Keduanya + build number + set ke beta
-./build.sh release none prod          # Release + pindah ke production
+#### 1. Rutinitas Development (Harian)
+Untuk build debug sehari-hari dan menaikkan patch version di track dev:
+```bash
+./build.sh debug patch dev
+# Hasil: 
+# - Versi dev naik (misal: 0.2.0-dev -> 0.2.1-dev)
+# - API set ke DEV
+# - Build mode debug
+```
+
+#### 2. Rilis Production
+Ketika ingin merilis update ke user. Script akan mengambil versi terakhir **Production**, bukan Development.
+```bash
+./build.sh release patch prod
+# Hasil:
+# - Versi prod naik (misal: 1.0.0 -> 1.0.1)
+# - API set ke PROD
+# - Build mode release
+```
+
+#### 3. Pindah Stage (Dev -> Beta)
+```bash
+./build.sh release build beta
+# Hasil: 0.2.1-dev -> 0.2.1-beta+2
+```
+
+#### 4. Reset / Set Versi Manual
+Jika Anda ingin memaksa versi kembali ke angka tertentu:
+```bash
+# Reset dev ke 0.5.0
+./build.sh debug none dev 0.5.0
+
+# Set production ke 2.0.0
+./build.sh release none prod 2.0.0
 ```
 
 ### Tipe Increment
 
-| Tipe | Sebelum | Sesudah | Keterangan |
-|------|---------|---------|------------|
-| `none` | `0.0.4+1` | `0.0.4+1` | Tidak ada perubahan (default) |
-| `build` | `0.0.4+1` | `0.0.4+2` | Increment build number saja |
-| `patch` | `0.0.4+1` | `0.0.5+2` | Increment patch version |
-| `minor` | `0.0.4+1` | `0.1.0+2` | Increment minor version |
-| `major` | `0.0.4+1` | `1.0.0+2` | Increment major version |
+| Tipe | Keterangan | Contoh |
+|------|------------|--------|
+| `none` | Tidak ada perubahan versi | - |
+| `build` | Naikkan build number saja | Fix internal / refactor |
+| `patch` | Naikkan angka terakhir (0.0.**X**) | Bug fixes |
+| `minor` | Naikkan angka tengah (0.**X**.0) | Fitur baru (backward compatible) |
+| `major` | Naikkan angka depan (**X**.0.0) | Perubahan besar / Breaking changes |
 
-### Kapan Menggunakan Increment?
-
-#### 🐛 Bug Fix (Perbaikan Bug)
-Gunakan **`patch`** untuk perbaikan bug kecil hingga sedang.
-
-```bash
-# Contoh: Fix login gagal, fix crash saat checkout, fix tampilan error
-./build.sh release patch
-# 0.0.4-dev+1 → 0.0.5-dev+2
-```
-
-#### ✨ Fitur Baru (New Feature)
-Gunakan **`minor`** untuk penambahan fitur baru yang backward compatible.
-
-```bash
-# Contoh: Tambah fitur laporan, tambah metode pembayaran baru, tambah filter produk
-./build.sh release minor
-# 0.0.5-dev+2 → 0.1.0-dev+3
-```
-
-#### 🔧 Tech Debt / Refactor
-Gunakan **`build`** untuk refactor internal yang tidak mengubah fungsionalitas.
-
-```bash
-# Contoh: Refactor kode, optimasi performa, update dependencies, cleanup code
-./build.sh release build
-# 0.1.0-dev+3 → 0.1.0-dev+4
-```
-
-#### 🚀 Major Update (Breaking Changes)
-Gunakan **`major`** untuk perubahan besar yang tidak backward compatible.
-
-```bash
-# Contoh: Redesign total UI, ubah struktur database, migrasi arsitektur, ganti API
-./build.sh release major
-# 0.1.0-dev+4 → 1.0.0-dev+5
-```
-
-#### 📋 Ringkasan
-
-| Jenis Perubahan | Increment | Contoh |
-|-----------------|-----------|--------|
-| Bug fix kecil | `patch` | Fix typo, fix minor UI |
-| Bug fix besar | `patch` | Fix crash, fix security issue |
-| Fitur baru | `minor` | Tambah modul laporan |
-| Improvement UX | `minor` | Redesign halaman order |
-| Refactor code | `build` | Cleanup, optimasi |
-| Update library | `build` | Update dependencies |
-| Breaking changes | `major` | Migrasi database |
-| Rilis pertama | `major` | v1.0.0 production |
-
-### Contoh Output
-
-```bash
-./build.sh both patch
-
-# Output:
-# 📦 Debug APK:
-#    File: edifly-pos-v0.0.5-debug.apk
-#    Path: build/app/outputs/flutter-apk/
-#
-# 📦 Release APK:
-#    File: edifly-pos-v0.0.5-release.apk
-#    Path: build/app/outputs/flutter-apk/
-```
-
-### Lokasi Output APK
+### Lokasi Output
 
 ```
 build/app/outputs/flutter-apk/
@@ -138,38 +113,6 @@ build/app/outputs/flutter-apk/
 └── edifly-pos-v{version}-release.apk
 ```
 
-## 📝 Versioning
-
-Format versi mengikuti Semantic Versioning dengan stage:
-
-```
-MAJOR.MINOR.PATCH[-STAGE]+BUILD_NUMBER
-```
-
-- **MAJOR**: Perubahan besar yang tidak backward compatible
-- **MINOR**: Fitur baru yang backward compatible
-- **PATCH**: Bug fixes
-- **STAGE**: dev, alpha, beta, rc (opsional, dihapus untuk production)
-- **BUILD_NUMBER**: Nomor build internal (wajib naik untuk upload ke Play Store)
-
-### Stage Development
-
-| Stage | Format | Keterangan |
-|-------|--------|------------|
-| `dev` | `0.0.4-dev+1` | Development |
-| `alpha` | `0.0.4-alpha+1` | Alpha testing |
-| `beta` | `0.0.4-beta+1` | Beta testing |
-| `rc` | `0.0.4-rc+1` | Release Candidate |
-| `prod` | `0.0.4+1` | Production (tanpa suffix) |
-
-### Flow Development → Production
-
-```
-0.0.4-dev+1   → ./build.sh release patch        → 0.0.5-dev+2
-0.0.5-dev+2   → ./build.sh release build beta   → 0.0.5-beta+3
-0.0.5-beta+3  → ./build.sh release build rc     → 0.0.5-rc+4
-0.0.5-rc+4    → ./build.sh release none prod    → 0.0.5+4  ← Production!
-```
 
 ## 🔧 Konfigurasi
 

@@ -32,7 +32,7 @@ class PosApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GetMaterialApp(
-      title: 'POS Retail',
+      title: 'Dimonggoin Kasir',
       debugShowCheckedModeBanner: false,
 
       /// Disable Material 3 for stable POS UI

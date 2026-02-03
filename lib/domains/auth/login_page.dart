@@ -113,7 +113,7 @@ class _PosLoginPageState extends State<PosLoginPage> {
             const Icon(Icons.storefront, color: Colors.white, size: 26),
             const SizedBox(width: 8),
             Text(
-              'POS Retail 1.0',
+              'Dimonggoin Kasir 1.0',
               style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 13),
             ),
           ],
