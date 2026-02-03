@@ -1,9 +1,9 @@
 import 'dart:ui';
 
+import 'package:edifly_pos/app/routes/app_routes.dart';
 import 'package:edifly_pos/core/utils/currency.dart';
 import 'package:edifly_pos/core/utils/terbilang.dart';
 import 'package:edifly_pos/domains/auth/auth_controller.dart';
-import 'package:edifly_pos/domains/order/order_page.dart';
 import 'package:edifly_pos/domains/shift/shift_controller.dart';
 import 'package:edifly_pos/widgets/top_bar.dart';
 import 'package:flutter/material.dart';
@@ -81,10 +81,10 @@ class _ClosingShiftPageState extends State<ClosingShiftPage> {
             userName: controller.userName.value,
             menus: [
               TopBarMenuModel(
-                label: 'Pesanan',
-                icon: Icons.receipt_long,
+                label: 'Transaksi',
+                icon: Icons.shopping_cart_outlined,
                 onTap: () {
-                  Get.to(() => const PosOrderPage());
+                  Get.toNamed(Routes.order);
                 },
               ),
               TopBarMenuModel(

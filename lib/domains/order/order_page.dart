@@ -23,19 +23,24 @@ class PosOrderPage extends StatelessWidget {
               userName: orderProcessController.userName.value,
               menus: [
                 TopBarMenuModel(
-                  label: 'Pesanan',
+                  label: 'Transaksi',
+                  icon: Icons.shopping_cart_outlined,
+                  isActive: true, // Halaman ini (Order Baru)
+                  onTap: () {},
+                ),
+                TopBarMenuModel(
+                  label: 'Daftar Pesanan',
                   icon: Icons.receipt_long,
-                  isActive: true,
+                  isActive: false,
                   onTap: () {
                     Get.toNamed(Routes.orderList);
                   },
                 ),
                 TopBarMenuModel(
-                  label: 'Tutup Pesanan',
+                  label: 'Tutup Shift',
                   icon: Icons.lock,
                   onTap: () {
                     Get.toNamed(Routes.closingShift);
-                    // Jalankan fungsi B (Contoh: Navigasi ke halaman rekonsiliasi)
                   },
                 ),
                 TopBarMenuModel(
@@ -440,14 +445,14 @@ class PosOrderPage extends StatelessWidget {
                 children: [
                   SizedBox(
                     width: 40,
-                    height: 15,
+                    height: 25,
                     child: TextFormField(
                       initialValue: discount == 0 ? '' : discount.toStringAsFixed(0),
                       keyboardType: TextInputType.number,
                       textAlign: TextAlign.center,
                       decoration: InputDecoration(
                         hintText: '0%',
-                        hintStyle: TextStyle(fontSize: 9, color: Colors.grey),
+                        hintStyle: TextStyle(fontSize: 10, color: Colors.grey),
                         contentPadding: EdgeInsets.zero,
                         filled: true,
                         fillColor: Colors.white,
@@ -456,7 +461,7 @@ class PosOrderPage extends StatelessWidget {
                           // borderSide: BorderSide(color: Colors.grey.shade400),
                         ),
                       ),
-                      style: const TextStyle(fontSize: 9),
+                      style: const TextStyle(fontSize: 10),
                       onChanged: (val) {
                         final d = double.tryParse(val) ?? 0.0;
                         onDiscountChanged(d);
