@@ -1,5 +1,6 @@
 import 'dart:ui';
 
+import 'package:edifly_pos/core/network/api_config.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -96,7 +97,7 @@ class _PosLoginPageState extends State<PosLoginPage> {
 
             const SizedBox(height: 14),
 
-            if (kDebugMode) _demoInfo(),
+            if (kDebugMode || API_BASE_URL.contains('edifly-dev')) _demoInfo(),
           ],
         ),
       ),

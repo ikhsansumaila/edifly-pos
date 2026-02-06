@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:image/image.dart' as img;
+
 /// Custom ESC/POS command generator for thermal printers
 /// Works with 58mm and 80mm printers
 class EscPosGenerator {
@@ -48,14 +50,14 @@ class EscPosGenerator {
     bool bold = false,
     bool doubleHeight = false,
     bool doubleWidth = false,
-    TextAlign align = TextAlign.left,
+    PosTextAlign align = PosTextAlign.left,
   }) {
     // Set alignment
     switch (align) {
-      case TextAlign.center:
+      case PosTextAlign.center:
         _buffer.addAll(_cmdAlignCenter);
         break;
-      case TextAlign.right:
+      case PosTextAlign.right:
         _buffer.addAll(_cmdAlignRight);
         break;
       default:
@@ -174,13 +176,13 @@ class EscPosGenerator {
   /// Print QR Code
   /// [content] Text to encode
   /// [size] Module size (1-16)
-  void qrcode(String content, {int size = 5, TextAlign align = TextAlign.center}) {
+  void qrcode(String content, {int size = 5, PosTextAlign align = PosTextAlign.center}) {
     // Alignment
     switch (align) {
-      case TextAlign.center:
+      case PosTextAlign.center:
         _buffer.addAll(_cmdAlignCenter);
         break;
-      case TextAlign.right:
+      case PosTextAlign.right:
         _buffer.addAll(_cmdAlignRight);
         break;
       default:
@@ -218,6 +220,75 @@ class EscPosGenerator {
     // Reset alignment
     _buffer.addAll(_cmdAlignLeft);
   }
+
+  /// Print Image
+  /// [image] Image to print
+  void image(img.Image image, {PosTextAlign align = PosTextAlign.center}) {
+    // Alignment
+    switch (align) {
+      case PosTextAlign.center:
+        _buffer.addAll(_cmdAlignCenter);
+        break;
+      case PosTextAlign.right:
+        _buffer.addAll(_cmdAlignRight);
+        break;
+      default:
+        _buffer.addAll(_cmdAlignLeft);
+        break;
+    }
+
+    // Convert to monochrome (black and white)
+    // Using luminance threshold
+    final img.Image mono = img.grayscale(image);
+
+    // We need to pack bits. existing image library might help but let's do manual packing for ESC/POS
+    // GS v 0 m xL xH yL yH d1...dk
+
+    final int width = mono.width;
+    final int height = mono.height;
+    final int bytesByLine = (width + 7) ~/ 8;
+
+    final List<int> rasterData = [];
+
+    for (int y = 0; y < height; y++) {
+      for (int x = 0; x < bytesByLine; x++) {
+        int byte = 0;
+        for (int b = 0; b < 8; b++) {
+          final int pixelX = x * 8 + b;
+          if (pixelX < width) {
+            // Check pixel brightness
+            final pixel = mono.getPixel(pixelX, y);
+            final luminance = img.getLuminance(pixel);
+            // If dark (black), set bit to 1. White is 0.
+            if (luminance < 128) {
+              byte |= (1 << (7 - b));
+            }
+          }
+        }
+        rasterData.add(byte);
+      }
+    }
+
+    // Command Header
+    _buffer.add(0x1d); // GS
+    _buffer.add(0x76); // v
+    _buffer.add(0x30); // 0
+    _buffer.add(0x00); // m = Normal
+
+    // xL, xH (Bytes width)
+    _buffer.add(bytesByLine % 256);
+    _buffer.add(bytesByLine ~/ 256);
+
+    // yL, yH (Height)
+    _buffer.add(height % 256);
+    _buffer.add(height ~/ 256);
+
+    // Data
+    _buffer.addAll(rasterData);
+
+    // Reset alignment
+    _buffer.addAll(_cmdAlignLeft);
+  }
 }
 
-enum TextAlign { left, center, right }
+enum PosTextAlign { left, center, right }

@@ -7,6 +7,7 @@ import 'package:edifly_pos/domains/product/product_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:image/image.dart' as img;
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -636,17 +637,33 @@ class PrinterService extends GetxController {
     gen.init();
 
     // Header
+    try {
+      final ByteData data = await rootBundle.load('assets/icons/receipt-logo.jpeg');
+      final Uint8List bytes = data.buffer.asUint8List();
+      final img.Image? originalImage = img.decodeImage(bytes);
+
+      if (originalImage != null) {
+        // Resize to width 250 (approx 65% of 58mm paper width)
+        final img.Image resized = img.copyResize(originalImage, width: 250);
+        gen.image(resized, align: PosTextAlign.center);
+        gen.feed(1);
+      }
+    } catch (e) {
+      debugPrint("Error printing logo: $e");
+    }
+
     final outletName = await AuthStorage.getNamaOutlet() ?? '';
     final outletAddress = await AuthStorage.getAddress() ?? '';
+    final cashierName = await AuthStorage.getName() ?? '-';
     gen.text(
       outletName,
       bold: true,
       doubleHeight: true,
       doubleWidth: true,
-      align: TextAlign.center,
+      align: PosTextAlign.center,
     );
     if (outletAddress.isNotEmpty) {
-      gen.text(outletAddress, align: TextAlign.center);
+      gen.text(outletAddress, align: PosTextAlign.center);
     }
     gen.feed(1);
 
@@ -654,7 +671,7 @@ class PrinterService extends GetxController {
     final now = DateTime.now();
     gen.text(
       'Tanggal: ${now.day}/${now.month}/${now.year} ${now.hour}:${now.minute.toString().padLeft(2, '0')}',
-      align: TextAlign.center,
+      align: PosTextAlign.center,
     );
     gen.feed(1);
 
@@ -665,6 +682,7 @@ class PrinterService extends GetxController {
     if (orderNo != null && orderNo.isNotEmpty) {
       gen.text('Order No: $orderNo');
     }
+    gen.text('Kasir: $cashierName');
     if (customerName.isNotEmpty) {
       gen.text('Customer: $customerName');
     }
@@ -702,7 +720,7 @@ class PrinterService extends GetxController {
 
     // Total
     gen.text('TOTAL', bold: true, doubleHeight: true);
-    gen.text(formatRupiah(total), bold: true, doubleHeight: true, align: TextAlign.right);
+    gen.text(formatRupiah(total), bold: true, doubleHeight: true, align: PosTextAlign.right);
     gen.feed(1);
 
     // Payment info
@@ -724,8 +742,8 @@ class PrinterService extends GetxController {
     }
 
     // Footer
-    gen.text('Terima Kasih', bold: true, align: TextAlign.center);
-    gen.text('Selamat Menikmati!', align: TextAlign.center);
+    gen.text('Terima Kasih', bold: true, align: PosTextAlign.center);
+    gen.text('Selamat Menikmati!', align: PosTextAlign.center);
     gen.feed(4);
 
     debugPrint("Receipt ESC/POS: ${gen.bytes.length} bytes");

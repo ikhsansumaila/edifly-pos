@@ -56,10 +56,25 @@ class ReceiptDialog extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     // Header
+                    // Logo
+                    Center(
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 10),
+                        // width: 80,
+                        height: 120,
+                        decoration: BoxDecoration(
+                          // shape: BoxShape.circle,
+                          image: const DecorationImage(
+                            image: AssetImage('assets/icons/receipt-logo.jpeg'),
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                      ),
+                    ),
                     Text(
                       outletName.toUpperCase(),
                       textAlign: TextAlign.center,
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      style: const TextStyle(fontSize: 11),
                     ),
                     if (outletAddress.isNotEmpty) ...[
                       const SizedBox(height: 4),
