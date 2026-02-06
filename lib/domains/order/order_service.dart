@@ -7,8 +7,8 @@ import 'package:edifly_pos/domains/order/models/order_list_model.dart';
 
 class OrderService {
   /// Get list of orders
-  static Future<List<OrderListItemModel>> getOrders() async {
-    final response = await ApiClient.get('/orders');
+  static Future<List<OrderListItemModel>> getOrders({int limit = 20, int offset = 0}) async {
+    final response = await ApiClient.get('/orders?limit=$limit&offset=$offset');
     final json = jsonDecode(response.body);
 
     if (json['status'] == true && json['data'] != null) {

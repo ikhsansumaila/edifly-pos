@@ -89,7 +89,7 @@ class OrderListPage extends StatelessWidget {
                 ),
                 const SizedBox(width: 12),
                 IconButton(
-                  onPressed: () => controller.fetchOrders(),
+                  onPressed: () => controller.fetchOrders(isRefresh: true),
                   icon: const Icon(Icons.refresh),
                   tooltip: 'Refresh',
                   color: AppThemeConfig.primaryColor,
@@ -128,7 +128,7 @@ class OrderListPage extends StatelessWidget {
                       TextButton.icon(
                         onPressed: () {
                           controller.searchOrder(''); // Clear search
-                          controller.fetchOrders();
+                          controller.fetchOrders(isRefresh: true);
                         },
                         icon: const Icon(Icons.refresh),
                         label: const Text('Refresh'),
@@ -139,11 +139,18 @@ class OrderListPage extends StatelessWidget {
               }
 
               return RefreshIndicator(
-                onRefresh: () => controller.fetchOrders(),
+                onRefresh: () => controller.fetchOrders(isRefresh: true),
                 child: ListView.builder(
+                  controller: controller.scrollController,
                   padding: const EdgeInsets.all(16),
-                  itemCount: displayOrders.length,
+                  itemCount: displayOrders.length + (controller.isLoadingMore.value ? 1 : 0),
                   itemBuilder: (context, index) {
+                    if (index == displayOrders.length) {
+                      return const Padding(
+                        padding: EdgeInsets.all(16.0),
+                        child: Center(child: CircularProgressIndicator()),
+                      );
+                    }
                     final order = displayOrders[index];
                     return _OrderCard(
                       order: order,

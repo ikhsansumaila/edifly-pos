@@ -6,15 +6,35 @@ import 'package:get/get.dart';
 
 class OrderListController extends GetxController {
   final isLoading = false.obs;
+  final isLoadingMore = false.obs; // Loader for lazy loading
   final isLoadingDetail = false.obs;
   final orders = <OrderListItemModel>[].obs;
   final selectedOrder = Rxn<OrderDetailModel>();
   final searchQuery = ''.obs;
 
+  // Pagination
+  final ScrollController scrollController = ScrollController();
+  final int limit = 20;
+  int offset = 0;
+  final hasMore = true.obs;
+
   @override
   void onInit() {
     super.onInit();
-    fetchOrders();
+    fetchOrders(isRefresh: true);
+    scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void onClose() {
+    scrollController.dispose();
+    super.onClose();
+  }
+
+  void _onScroll() {
+    if (scrollController.position.pixels >= scrollController.position.maxScrollExtent - 200) {
+      fetchOrders();
+    }
   }
 
   /// Filtered orders based on search query
@@ -35,11 +55,30 @@ class OrderListController extends GetxController {
   }
 
   /// Fetch order list from API
-  Future<void> fetchOrders() async {
-    isLoading.value = true;
+  Future<void> fetchOrders({bool isRefresh = false}) async {
+    if (isRefresh) {
+      isLoading.value = true;
+      offset = 0;
+      hasMore.value = true;
+    } else {
+      if (isLoading.value || isLoadingMore.value || !hasMore.value) return;
+      isLoadingMore.value = true;
+    }
+
     try {
-      final result = await OrderService.getOrders();
-      orders.value = result;
+      final result = await OrderService.getOrders(limit: limit, offset: offset);
+
+      if (result.length < limit) {
+        hasMore.value = false;
+      }
+
+      if (isRefresh) {
+        orders.assignAll(result);
+      } else {
+        orders.addAll(result);
+      }
+
+      offset += result.length;
     } catch (e) {
       debugPrint('Error fetching orders: $e');
       Get.snackbar(
@@ -51,6 +90,7 @@ class OrderListController extends GetxController {
       );
     } finally {
       isLoading.value = false;
+      isLoadingMore.value = false;
     }
   }
 

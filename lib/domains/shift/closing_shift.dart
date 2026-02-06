@@ -30,7 +30,7 @@ class _ClosingShiftPageState extends State<ClosingShiftPage> {
   }
 
   // Mock data sesuai gambar
-  final double initialBalance = 10000000;
+  // final double initialBalance = 10000000;
   final double cashSales = 0;
   final double nonCashSales = 0;
 
