@@ -1,13 +1,11 @@
 import 'dart:async';
 
-import 'package:edifly_pos/core/storage/auth_storage.dart';
-import 'package:edifly_pos/core/utils/currency.dart';
-import 'package:edifly_pos/core/utils/esc_pos_generator.dart';
+import 'package:edifly_pos/core/services/print_ecspos.dart';
+import 'package:edifly_pos/core/services/print_tspl.dart';
 import 'package:edifly_pos/domains/product/product_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import 'package:image/image.dart' as img;
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -365,9 +363,32 @@ class PrinterService extends GetxController {
 
     try {
       if (printerType.value == PrinterType.tspl) {
-        return await _testPrintTSPL();
+        final result = await PrintTspl.testPrint(labelWidth: labelWidth.value);
+        if (result != null) {
+          final success = await _printBytes(result);
+          if (success) {
+            _showSuccess('Test print berhasil!');
+          } else {
+            _showError('Test print gagal');
+          }
+          return success;
+        } else {
+          _showError('Gagal generate TSPL command');
+          return false;
+        }
       } else {
-        return await _testPrintESCPOS();
+        return await PrintEscPos.testPrint(
+          paperWidth: paperWidth.value,
+          printCallback: (bytes) async {
+            final success = await _printBytes(bytes);
+            if (success) {
+              _showSuccess('Test print berhasil!');
+            } else {
+              _showError('Test print gagal');
+            }
+            return success;
+          },
+        );
       }
     } catch (e) {
       debugPrint("Test print error: $e");
@@ -375,189 +396,6 @@ class PrinterService extends GetxController {
       return false;
     } finally {
       isPrinting.value = false;
-    }
-  }
-
-  /// Test print with ESC/POS
-  Future<bool> _testPrintESCPOS() async {
-    try {
-      debugPrint("Testing ESC/POS print...");
-
-      final bool result = await _channel.invokeMethod('printSimple', {
-        'text': 'TEST PRINT - ESC/POS\nHello World!\n\nPrinter berfungsi!',
-      });
-
-      debugPrint("ESC/POS print result: $result");
-
-      if (result) {
-        _showSuccess('ESC/POS print berhasil!');
-      } else {
-        _showError('ESC/POS print gagal');
-      }
-      return result;
-    } catch (e) {
-      debugPrint("ESC/POS print failed: $e");
-      _showError('ESC/POS error: $e');
-      return false;
-    }
-  }
-
-  /// Test print with TSPL - full dummy receipt
-  Future<bool> _testPrintTSPL() async {
-    try {
-      debugPrint("Testing TSPL print with dummy receipt...");
-
-      final StringBuffer tspl = StringBuffer();
-      final width = labelWidth.value;
-
-      // Constants
-      final int lineHeight = 35;
-      final int smallLineHeight = 30;
-
-      // Calculate dynamic height for test content
-      int estimatedDots = 20;
-      estimatedDots += lineHeight + 8; // Header
-      estimatedDots += lineHeight; // Date
-      estimatedDots += 8; // Divider
-      estimatedDots += smallLineHeight * 4 + 4; // Info (4 lines)
-      estimatedDots += 8; // Divider
-      estimatedDots += (smallLineHeight + smallLineHeight + 2) * 3; // 3 Items
-      estimatedDots += 10; // Divider
-      estimatedDots += lineHeight + 4; // Total
-      estimatedDots += smallLineHeight * 3 + 8; // Payment info
-      estimatedDots += smallLineHeight * 2; // Footer text
-      estimatedDots += smallLineHeight; // TEST PRINT
-      estimatedDots += 40; // Padding bottom
-
-      final calculatedHeightMm = (estimatedDots / 8).ceil() + 10;
-      final finalHeight = calculatedHeightMm;
-
-      // TSPL setup
-      tspl.writeln('SIZE $width mm, $finalHeight mm');
-      tspl.writeln('GAP 0 mm, 0 mm'); // Continuous mode
-      tspl.writeln('DIRECTION 1');
-      tspl.writeln('CLS');
-
-      // Dummy data
-      final outletName = await AuthStorage.getNamaOutlet() ?? '';
-      final cashierName = await AuthStorage.getName() ?? '';
-      final customerName = 'Budi Santoso';
-      final queueNumber = '001';
-      final channel = 'Dine In';
-      final paymentMethod = 'Cash';
-
-      // Calculate positions
-      int y = 20; // Start lower
-      final int maxWidth = width * 8 - 20; // More right margin
-      final int leftMargin = 20; // More left margin
-
-      // ========== HEADER ==========
-      // Calculate dynamic center for Outlet Name (Font 3 approx 15 dots/char)
-      int nameWidth = outletName.length * 15;
-      int nameX = ((width * 8) - nameWidth) ~/ 2;
-      if (nameX < 0) nameX = 0;
-
-      tspl.writeln('TEXT $nameX, $y, "3", 0, 1, 1, "$outletName"');
-      y += lineHeight + 8;
-
-      // Date & Time
-      final now = DateTime.now();
-      final dateStr =
-          'Tanggal: ${now.day}/${now.month}/${now.year} ${now.hour}:${now.minute.toString().padLeft(2, '0')}';
-      tspl.writeln('TEXT ${maxWidth ~/ 2 - 90}, $y, "2", 0, 1, 1, "$dateStr"');
-      y += lineHeight;
-
-      // Divider
-      tspl.writeln('BAR $leftMargin, $y, $maxWidth, 2');
-      y += 8;
-
-      // ========== INFO ==========
-      tspl.writeln('TEXT $leftMargin, $y, "2", 0, 1, 1, "Kasir: $cashierName"');
-      y += smallLineHeight;
-      tspl.writeln('TEXT $leftMargin, $y, "2", 0, 1, 1, "Customer: $customerName"');
-      y += smallLineHeight;
-      tspl.writeln('TEXT $leftMargin, $y, "2", 0, 1, 1, "No. Antrian: $queueNumber"');
-      y += smallLineHeight;
-      tspl.writeln('TEXT $leftMargin, $y, "2", 0, 1, 1, "Sumber: $channel"');
-      y += smallLineHeight + 4;
-
-      // Divider
-      tspl.writeln('BAR $leftMargin, $y, $maxWidth, 2');
-      y += 8;
-
-      // ========== ITEMS ==========
-      // Item 1: Kopi Susu
-      tspl.writeln('TEXT $leftMargin, $y, "2", 0, 1, 1, "Kopi Susu"');
-      y += smallLineHeight;
-      tspl.writeln('TEXT $leftMargin, $y, "1", 0, 1, 1, "2 x Rp 15.000"');
-      tspl.writeln('TEXT ${maxWidth - 100}, $y, "1", 0, 1, 1, "Rp 30.000"'); // Shifted left
-      y += smallLineHeight + 2;
-
-      // Item 2: Roti Bakar
-      tspl.writeln('TEXT $leftMargin, $y, "2", 0, 1, 1, "Roti Bakar Coklat"');
-      y += smallLineHeight;
-      tspl.writeln('TEXT $leftMargin, $y, "1", 0, 1, 1, "1 x Rp 20.000"');
-      tspl.writeln('TEXT ${maxWidth - 100}, $y, "1", 0, 1, 1, "Rp 20.000"'); // Shifted left
-      y += smallLineHeight + 2;
-
-      // Item 3: Es Teh
-      tspl.writeln('TEXT $leftMargin, $y, "2", 0, 1, 1, "Es Teh Manis"');
-      y += smallLineHeight;
-      tspl.writeln('TEXT $leftMargin, $y, "1", 0, 1, 1, "1 x Rp 15.000"');
-      tspl.writeln('TEXT ${maxWidth - 100}, $y, "1", 0, 1, 1, "Rp 15.000"'); // Shifted left
-      y += smallLineHeight + 4;
-
-      // Divider
-      tspl.writeln('BAR $leftMargin, $y, $maxWidth, 2');
-      y += 10;
-
-      // ========== TOTAL ==========
-      tspl.writeln('TEXT $leftMargin, $y, "3", 0, 1, 1, "TOTAL"');
-      tspl.writeln('TEXT ${maxWidth - 120}, $y, "3", 0, 1, 1, "Rp 65.000"'); // Shifted left
-      y += lineHeight + 4;
-
-      tspl.writeln('TEXT $leftMargin, $y, "2", 0, 1, 1, "Metode: $paymentMethod"');
-      y += smallLineHeight;
-
-      tspl.writeln('TEXT $leftMargin, $y, "1", 0, 1, 1, "Tunai"');
-      tspl.writeln('TEXT ${maxWidth - 100}, $y, "1", 0, 1, 1, "Rp 100.000"'); // Shifted left
-      y += smallLineHeight;
-
-      tspl.writeln('TEXT $leftMargin, $y, "1", 0, 1, 1, "Kembalian"');
-      tspl.writeln('TEXT ${maxWidth - 100}, $y, "1", 0, 1, 1, "Rp 35.000"'); // Shifted left
-      y += smallLineHeight + 8;
-
-      // ========== FOOTER ==========
-      tspl.writeln('TEXT ${maxWidth ~/ 2 - 60}, $y, "2", 0, 1, 1, "Terima Kasih"');
-      y += smallLineHeight;
-      tspl.writeln('TEXT ${maxWidth ~/ 2 - 80}, $y, "1", 0, 1, 1, "Selamat Menikmati!"');
-      y += smallLineHeight;
-      tspl.writeln('TEXT ${maxWidth ~/ 2 - 80}, $y, "1", 0, 1, 1, "=== TEST PRINT ==="');
-
-      // Print
-      tspl.writeln('PRINT 1');
-      tspl.writeln('FORMFEED'); // Stop paper
-      tspl.writeln('EOP');
-
-      final bool result = await _channel.invokeMethod('printTSPL', {
-        'text': tspl.toString(),
-        'width': width,
-        'height': finalHeight,
-        'raw': true,
-      });
-
-      debugPrint("TSPL print result: $result");
-
-      if (result) {
-        _showSuccess('Test print berhasil!');
-      } else {
-        _showError('Test print gagal');
-      }
-      return result;
-    } catch (e) {
-      debugPrint("TSPL print failed: $e");
-      _showError('TSPL error: $e');
-      return false;
     }
   }
 
@@ -588,7 +426,8 @@ class PrinterService extends GetxController {
 
     try {
       if (printerType.value == PrinterType.tspl) {
-        return await _printReceiptTSPL(
+        final result = await PrintTspl.printReceipt(
+          labelWidth: labelWidth.value,
           orderItems: orderItems,
           total: total,
           customerName: customerName,
@@ -596,11 +435,25 @@ class PrinterService extends GetxController {
           paymentMethod: paymentMethod,
           channel: channel,
           cashAmount: cashAmount,
-          printUrl: 'https://www.instagram.com/dimonggoin?igsh=Zmc1YmFiNDc3eGV5',
+          printUrl: printUrl,
           orderNo: orderNo,
         );
+
+        if (result != null) {
+          final success = await _printBytes(result);
+          if (success) {
+            _showSuccess('Receipt printed');
+          } else {
+            _showError('Print failed');
+          }
+          return success;
+        } else {
+          _showError('Gagal generate TSPL command');
+          return false;
+        }
       } else {
-        return await _printReceiptESCPOS(
+        return await PrintEscPos.printReceipt(
+          paperWidth: paperWidth.value,
           orderItems: orderItems,
           total: total,
           customerName: customerName,
@@ -608,466 +461,25 @@ class PrinterService extends GetxController {
           paymentMethod: paymentMethod,
           channel: channel,
           cashAmount: cashAmount,
-          printUrl: 'https://www.instagram.com/dimonggoin?igsh=Zmc1YmFiNDc3eGV5',
+          printUrl: printUrl,
           orderNo: orderNo,
+          printCallback: (bytes) async {
+            final success = await _printBytes(bytes);
+            if (success) {
+              _showSuccess('Receipt printed');
+            } else {
+              _showError('Print failed');
+            }
+            return success;
+          },
         );
       }
     } catch (e) {
-      debugPrint("Print error: $e");
-      _showError('Print error: $e');
+      debugPrint("Print receipt error: $e");
+      _showError('Print receipt error: $e');
       return false;
     } finally {
       isPrinting.value = false;
-    }
-  }
-
-  /// Print receipt with ESC/POS
-  Future<bool> _printReceiptESCPOS({
-    required List<ProductModel> orderItems,
-    required int total,
-    required String customerName,
-    required String queueNumber,
-    required String paymentMethod,
-    required String channel,
-    int? cashAmount,
-    String? printUrl,
-    String? orderNo,
-  }) async {
-    final gen = EscPosGenerator(paperWidth: paperWidth.value);
-    gen.init();
-
-    // Header
-    try {
-      final ByteData data = await rootBundle.load('assets/icons/receipt-logo.jpeg');
-      final Uint8List bytes = data.buffer.asUint8List();
-      final img.Image? originalImage = img.decodeImage(bytes);
-
-      if (originalImage != null) {
-        // Resize to width 250 (approx 65% of 58mm paper width)
-        final img.Image resized = img.copyResize(originalImage, width: 250);
-        gen.image(resized, align: PosTextAlign.center);
-        gen.feed(1);
-      }
-    } catch (e) {
-      debugPrint("Error printing logo: $e");
-    }
-
-    final outletName = await AuthStorage.getNamaOutlet() ?? '';
-    final outletAddress = await AuthStorage.getAddress() ?? '';
-    final cashierName = await AuthStorage.getName() ?? '-';
-    gen.text(
-      outletName,
-      bold: true,
-      doubleHeight: true,
-      doubleWidth: true,
-      align: PosTextAlign.center,
-    );
-    if (outletAddress.isNotEmpty) {
-      gen.text(outletAddress, align: PosTextAlign.center);
-    }
-    gen.feed(1);
-
-    // Date & Time
-    final now = DateTime.now();
-    gen.text(
-      'Tanggal: ${now.day}/${now.month}/${now.year} ${now.hour}:${now.minute.toString().padLeft(2, '0')}',
-      align: PosTextAlign.center,
-    );
-    gen.feed(1);
-
-    // Customer info
-    if (queueNumber.isNotEmpty) {
-      gen.text('No. Antrian: $queueNumber');
-    }
-    if (orderNo != null && orderNo.isNotEmpty) {
-      gen.text('Order No: $orderNo');
-    }
-    gen.text('Kasir: $cashierName');
-    if (customerName.isNotEmpty) {
-      gen.text('Customer: $customerName');
-    }
-    gen.text('Metode: $paymentMethod');
-    gen.text('Sumber: $channel');
-    gen.feed(1);
-
-    gen.hr();
-
-    gen.hr();
-
-    // Items Header
-    // Item (45%), Qty (10%), Disc (20%), Total (Remainder)
-    gen.text('Item             Qty Disc.     Total', bold: true);
-    gen.hr();
-
-    // Items
-    for (final item in orderItems) {
-      final double nominalDiscount = (item.harga * (item.discount / 100)) * item.qty;
-      final double totalItem = (item.harga * item.qty) - nominalDiscount;
-
-      // Row 1: Name, Qty, Disc
-      gen.row4(
-        item.namaProduct,
-        item.qty.toString(),
-        formatRupiah(nominalDiscount.toInt()),
-        "", // Total moved to next line
-      );
-
-      // Row 2: @Price ... Total
-      gen.row("@${formatRupiah(item.harga)}", formatRupiah(totalItem.toInt()));
-    }
-
-    gen.hr();
-
-    // Total
-    gen.text('TOTAL', bold: true, doubleHeight: true);
-    gen.text(formatRupiah(total), bold: true, doubleHeight: true, align: PosTextAlign.right);
-    gen.feed(1);
-
-    // Payment info
-
-    if (cashAmount != null && cashAmount > 0) {
-      gen.row('Tunai', formatRupiah(cashAmount));
-      final change = cashAmount - total;
-      if (change > 0) {
-        gen.row('Kembalian', formatRupiah(change));
-      }
-    }
-
-    gen.feed(2);
-
-    // QR Code
-    if (printUrl != null && printUrl.isNotEmpty) {
-      gen.qrcode(printUrl, size: 6);
-      gen.feed(1);
-    }
-
-    // Footer
-    gen.text('Terima Kasih', bold: true, align: PosTextAlign.center);
-    gen.text('Selamat Menikmati!', align: PosTextAlign.center);
-    gen.feed(4);
-
-    debugPrint("Receipt ESC/POS: ${gen.bytes.length} bytes");
-
-    final result = await _printBytes(gen.bytes);
-
-    if (result) {
-      _showSuccess('Receipt printed');
-      return true;
-    } else {
-      _showError('Print failed');
-      return false;
-    }
-  }
-
-  /// Print receipt with TSPL (for label printers)
-  Future<bool> _printReceiptTSPL({
-    required List<ProductModel> orderItems,
-    required int total,
-    required String customerName,
-    required String queueNumber,
-    required String paymentMethod,
-    required String channel,
-    int? cashAmount,
-    String? printUrl,
-    String? orderNo,
-  }) async {
-    // Build TSPL command string
-    final StringBuffer tspl = StringBuffer();
-
-    final width = labelWidth.value;
-
-    // Get outlet name and cashier
-    final outletName = await AuthStorage.getNamaOutlet() ?? '';
-    final outletAddress = await AuthStorage.getAddress() ?? '';
-    final cashierName = await AuthStorage.getName() ?? '-';
-
-    // Prepare Address Lines
-    List<String> addressLines = [];
-    if (outletAddress.isNotEmpty) {
-      final maxChars = ((width * 8) - 40) ~/ 12; // Font 2 approx 12 dots width
-      final words = outletAddress.split(' ');
-      String currentLine = "";
-      for (var word in words) {
-        if ((currentLine + word).length > maxChars) {
-          if (currentLine.isNotEmpty) addressLines.add(currentLine.trim());
-          currentLine = "$word ";
-        } else {
-          currentLine += "$word ";
-        }
-      }
-      if (currentLine.isNotEmpty) addressLines.add(currentLine.trim());
-    }
-
-    // Constants
-    final int lineHeight = 35;
-    final int smallLineHeight = 30;
-
-    // 1. Hitung estimasi tinggi konten (dalam dots)
-    int estimatedDots = 20; // Initial Y
-
-    // Header section
-    estimatedDots += lineHeight + 8; // Outlet name
-    if (addressLines.isNotEmpty) {
-      estimatedDots += (addressLines.length * smallLineHeight) + 4;
-    }
-    estimatedDots += lineHeight; // Date
-    estimatedDots += 8; // Divider
-
-    // Info section
-    if (orderNo != null && orderNo.isNotEmpty) estimatedDots += smallLineHeight; // Order No
-    estimatedDots += smallLineHeight; // Kasir
-    if (customerName.isNotEmpty) estimatedDots += smallLineHeight;
-    if (queueNumber.isNotEmpty && queueNumber != '-') estimatedDots += smallLineHeight;
-    estimatedDots += smallLineHeight + 4; // Channel
-    estimatedDots += 8; // Divider
-
-    // Items section
-    for (int i = 0; i < orderItems.length; i++) {
-      // Estimate wrapped lines
-      String name = orderItems[i].namaProduct;
-      int nameLines = (name.length / 12).ceil();
-      if (nameLines < 1) nameLines = 1;
-
-      estimatedDots += smallLineHeight * nameLines; // Name lines
-      estimatedDots += smallLineHeight + 2; // @Price line
-    }
-    estimatedDots += 10; // Divider
-
-    // Total section
-    estimatedDots += lineHeight + 4; // Total label & value
-    estimatedDots += smallLineHeight; // Payment method
-    if (cashAmount != null && cashAmount > 0) {
-      estimatedDots += smallLineHeight; // Cash
-      final change = cashAmount - total;
-      if (change > 0) estimatedDots += smallLineHeight; // Change
-    }
-    estimatedDots += 8; // Padding
-
-    // QR Code
-    if (printUrl != null && printUrl.isNotEmpty) {
-      estimatedDots += 250; // Estimate QR area height
-    }
-
-    // Footer section
-    estimatedDots += smallLineHeight; // Terima kasih
-    estimatedDots += smallLineHeight; // Selamat menikmati
-    estimatedDots += 100; // Extra padding bottom (increased buffer)
-
-    // Convert dots to mm (8 dots = 1 mm) + buffer
-    // Add extra 20mm buffer to be safe
-    final calculatedHeightMm = (estimatedDots / 8).ceil() + 20;
-
-    // Use dynamic height if in custom/continuous mode, otherwise use fixed label height
-    // But since user asked for dynamic height based on content, we prioritize calculated height
-    // especially if it's longer than default setting.
-    final finalHeight = calculatedHeightMm;
-
-    // TSPL setup
-    tspl.writeln('SIZE $width mm, $finalHeight mm');
-    tspl.writeln('GAP 0 mm, 0 mm'); // Continuous mode
-    tspl.writeln('DIRECTION 1');
-    tspl.writeln('CLS');
-
-    // Calculate positions (dots, 8 dots = 1mm approximately)
-    int y = 20; // Start lower
-    final int maxWidth = width * 8 - 20; // More right margin
-    final int leftMargin = 20; // More left margin
-
-    // ========== HEADER ==========
-    // Outlet name (centered, bold - font 3)
-    // Dynamic Center: (PaperWidth - TextWidth) / 2
-    int nameWidth = outletName.length * 15;
-    int nameX = ((width * 8) - nameWidth) ~/ 2;
-    if (nameX < 0) nameX = 0;
-    tspl.writeln('TEXT $nameX, $y, "3", 0, 1, 1, "$outletName"');
-    y += lineHeight + 8;
-
-    // Address
-    for (final line in addressLines) {
-      int lineX = ((width * 8) - (line.length * 12)) ~/ 2;
-      if (lineX < 0) lineX = 0;
-      tspl.writeln('TEXT $lineX, $y, "2", 0, 1, 1, "$line"');
-      y += smallLineHeight;
-    }
-    if (addressLines.isNotEmpty) y += 4;
-
-    // Date & Time (centered, small - font 2)
-    final now = DateTime.now();
-    final dateStr =
-        'Tanggal: ${now.day}/${now.month}/${now.year} ${now.hour}:${now.minute.toString().padLeft(2, '0')}';
-    tspl.writeln('TEXT ${maxWidth ~/ 2 - 140}, $y, "2", 0, 1, 1, "$dateStr"');
-    y += lineHeight;
-
-    // Divider line
-    tspl.writeln('BAR $leftMargin, $y, $maxWidth, 2');
-    y += 8;
-
-    // ========== INFO SECTION ==========
-    // Queue number
-    if (queueNumber.isNotEmpty && queueNumber != '-') {
-      tspl.writeln('TEXT $leftMargin, $y, "2", 0, 1, 1, "No. Antrian: $queueNumber"');
-      y += smallLineHeight;
-    }
-
-    // Order No
-    if (orderNo != null && orderNo.isNotEmpty) {
-      tspl.writeln('TEXT $leftMargin, $y, "2", 0, 1, 1, "Order No: $orderNo"');
-      y += smallLineHeight;
-    }
-
-    // Kasir
-    tspl.writeln('TEXT $leftMargin, $y, "2", 0, 1, 1, "Kasir: $cashierName"');
-    y += smallLineHeight;
-
-    // Customer
-    if (customerName.isNotEmpty) {
-      tspl.writeln('TEXT $leftMargin, $y, "2", 0, 1, 1, "Customer: $customerName"');
-      y += smallLineHeight;
-    }
-
-    // Payment Method
-    tspl.writeln('TEXT $leftMargin, $y, "2", 0, 1, 1, "Metode: $paymentMethod"');
-    y += smallLineHeight;
-
-    // Channel
-    tspl.writeln('TEXT $leftMargin, $y, "2", 0, 1, 1, "Sumber: $channel"');
-    y += smallLineHeight + 4;
-
-    // Divider line
-    tspl.writeln('BAR $leftMargin, $y, $maxWidth, 2');
-    y += 8;
-
-    // ========== ITEMS HEADER ==========
-    // Item (0%), Qty (45%), Disc (60%), Total (80%)
-    final int col1 = leftMargin;
-    final int col2 = leftMargin + ((width * 8 - 40) * 0.45).toInt();
-    final int col3 = leftMargin + ((width * 8 - 40) * 0.60).toInt();
-    final int col4 = leftMargin + ((width * 8 - 40) * 0.80).toInt();
-
-    tspl.writeln('TEXT $col1, $y, "2", 0, 1, 1, "Item"');
-    tspl.writeln('TEXT $col2, $y, "2", 0, 1, 1, "Qty"');
-    tspl.writeln('TEXT $col3, $y, "2", 0, 1, 1, "Disc."');
-    tspl.writeln('TEXT $col4, $y, "2", 0, 1, 1, "Total"');
-    y += smallLineHeight + 4;
-
-    // Divider line
-    tspl.writeln('BAR $leftMargin, $y, $maxWidth, 2');
-    y += 8;
-
-    // ========== ITEMS ==========
-    for (int i = 0; i < orderItems.length; i++) {
-      final item = orderItems[i];
-      final double nominalDiscount = (item.harga * (item.discount / 100)) * item.qty;
-      final double totalItem = (item.harga * item.qty) - nominalDiscount;
-
-      // Wrap text logic (max 12 chars for col1)
-      String name = item.namaProduct;
-      List<String> nameLines = [];
-      const int maxChars = 12;
-
-      while (name.length > maxChars) {
-        int splitIndex = name.lastIndexOf(' ', maxChars);
-        if (splitIndex == -1) splitIndex = maxChars; // valid split not found, hard split
-
-        nameLines.add(name.substring(0, splitIndex).trim());
-        name = name.substring(splitIndex).trim();
-      }
-      nameLines.add(name);
-
-      // Row 1: Name Line 1, Qty, Disc
-      tspl.writeln('TEXT $col1, $y, "2", 0, 1, 1, "${nameLines[0]}"');
-      tspl.writeln('TEXT $col2, $y, "2", 0, 1, 1, "${item.qty}"');
-      tspl.writeln('TEXT $col3, $y, "2", 0, 1, 1, "${formatRupiah(nominalDiscount.toInt())}"');
-
-      y += smallLineHeight;
-
-      // Subsequent lines for Name
-      for (int k = 1; k < nameLines.length; k++) {
-        tspl.writeln('TEXT $col1, $y, "2", 0, 1, 1, "${nameLines[k]}"');
-        y += smallLineHeight;
-      }
-
-      // Row 2: @Price (Left) & Total (Right)
-      tspl.writeln('TEXT $col1, $y, "1", 0, 1, 1, "@${formatRupiah(item.harga)}"');
-      tspl.writeln('TEXT $col4, $y, "2", 0, 1, 1, "${formatRupiah(totalItem.toInt())}"');
-
-      y += smallLineHeight + 2;
-    }
-
-    // Divider line
-    tspl.writeln('BAR $leftMargin, $y, $maxWidth, 2');
-    y += 10;
-
-    // ========== TOTAL ==========
-    tspl.writeln('TEXT $leftMargin, $y, "3", 0, 1, 1, "TOTAL"');
-    tspl.writeln(
-      'TEXT ${maxWidth - 120}, $y, "3", 0, 1, 1, "${formatRupiah(total)}"',
-    ); // Shifted left
-    y += lineHeight + 4;
-
-    // Payment method
-    // tspl.writeln('TEXT $leftMargin, $y, "2", 0, 1, 1, "Metode: $paymentMethod"'); // Moved to Info
-    // y += smallLineHeight;
-
-    // Cash & Change
-    if (cashAmount != null && cashAmount > 0) {
-      tspl.writeln('TEXT $leftMargin, $y, "1", 0, 1, 1, "Tunai"');
-      tspl.writeln(
-        'TEXT ${maxWidth - 100}, $y, "1", 0, 1, 1, "${formatRupiah(cashAmount)}"',
-      ); // Shifted left
-      y += smallLineHeight;
-
-      final change = cashAmount - total;
-      if (change > 0) {
-        tspl.writeln('TEXT $leftMargin, $y, "1", 0, 1, 1, "Kembalian"');
-        tspl.writeln(
-          'TEXT ${maxWidth - 100}, $y, "1", 0, 1, 1, "${formatRupiah(change)}"',
-        ); // Shifted left
-        y += smallLineHeight;
-      }
-    }
-
-    y += 20; // Increased spacing before QR Code
-
-    // QR Code
-    if (printUrl != null && printUrl.isNotEmpty) {
-      // Calculate center for QR (rough estimate, assuming 200 dots width)
-      int qrX = ((width * 8 - 200) ~/ 2) + 20; // Shift right by 20 dots
-      if (qrX < 0) qrX = 0;
-      tspl.writeln('QRCODE $qrX, $y, L, 5, A, 0, "${printUrl.replaceAll('"', '\\"')}"');
-      y += 250;
-    }
-
-    // ========== FOOTER ==========
-    tspl.writeln('TEXT ${maxWidth ~/ 2 - 60}, $y, "2", 0, 1, 1, "Terima Kasih"');
-    y += smallLineHeight;
-    tspl.writeln('TEXT ${maxWidth ~/ 2 - 80}, $y, "1", 0, 1, 1, "Selamat Menikmati!"');
-
-    // Print command
-    tspl.writeln('PRINT 1');
-    tspl.writeln('FORMFEED'); // Stop paper
-    tspl.writeln('EOP');
-
-    final bool result = await _channel.invokeMethod('printTSPL', {
-      'text': tspl.toString(),
-      'width': width,
-      'height': finalHeight,
-      'raw': true,
-    });
-
-    debugPrint("TSPL print result: $result");
-
-    if (result) {
-      Get.snackbar(
-        'Success',
-        'Receipt printed',
-        backgroundColor: Colors.green,
-        colorText: Colors.white,
-      );
-      return true;
-    } else {
-      _showError('Print failed');
-      return false;
     }
   }
 }

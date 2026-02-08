@@ -701,7 +701,7 @@ class _OrderDetailSheet extends StatelessWidget {
       queueNumber: '',
       paymentMethod: order.pembayaranVia,
       channel: '',
-      printUrl: order.printUrl,
+      printUrl: 'https://www.instagram.com/dimonggoin?igsh=Zmc1YmFiNDc3eGV5',
       orderNo: order.orderNo,
     );
 
