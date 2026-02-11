@@ -462,7 +462,7 @@ class PrinterService extends GetxController {
           channel: channel,
           cashAmount: cashAmount,
           printUrl: printUrl,
-          orderNo: orderNo,
+          orderNo: orderNo ?? '-',
           printCallback: (bytes) async {
             final success = await _printBytes(bytes);
             if (success) {

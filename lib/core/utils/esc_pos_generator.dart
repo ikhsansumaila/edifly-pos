@@ -122,10 +122,18 @@ class EscPosGenerator {
   }
 
   /// Add a row with left bold and right text
-  void rowBold(String left, String right) {
+  void rowBold(String left, String right, {bool doubleHeight = false}) {
     _buffer.addAll(_cmdBoldOn);
+    if (doubleHeight) {
+      _buffer.addAll(_cmdDoubleHeight);
+    }
     row(left, right);
+
+    // reset bold
     _buffer.addAll(_cmdBoldOff);
+
+    // Reset size
+    _buffer.addAll(_cmdNormalSize);
   }
 
   /// Add a row with 4 columns
@@ -134,7 +142,7 @@ class EscPosGenerator {
   void row4(String col1, String col2, String col3, String col4) {
     int w1 = (paperWidth * 0.45).floor(); // Item
     int w2 = (paperWidth * 0.10).floor(); // Qty
-    int w3 = (paperWidth * 0.20).floor(); // Disc
+    int w3 = (paperWidth * 0.30).floor(); // Disc
     int w4 = paperWidth - w1 - w2 - w3; // Total (remainder)
 
     // Truncate or pad

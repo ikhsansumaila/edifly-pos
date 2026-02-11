@@ -7,6 +7,9 @@ import 'package:flutter/services.dart';
 import 'package:image/image.dart' as img;
 
 class PrintEscPos {
+  static const String _logoPath = 'assets/icons/receipt-logo.jpeg';
+  static const double _logoWidth = 0.6;
+
   /// Test print with ESC/POS
   static Future<bool> testPrint({
     required int paperWidth,
@@ -20,14 +23,14 @@ class PrintEscPos {
 
       // Header with Logo
       try {
-        final ByteData data = await rootBundle.load('assets/icons/receipt-logo.jpeg');
+        final ByteData data = await rootBundle.load(_logoPath);
         final Uint8List bytes = data.buffer.asUint8List();
         final img.Image? originalImage = img.decodeImage(bytes);
 
         if (originalImage != null) {
           // Resize to 80% of paper width (matching TSPL)
           // 58mm = 384 dots, 80mm = 576 dots at 203 DPI
-          final targetWidth = (paperWidth == 58 ? 384 : 576) * 0.8;
+          final targetWidth = (paperWidth == 58 ? 384 : 576) * _logoWidth;
           final img.Image resized = img.copyResize(originalImage, width: targetWidth.toInt());
           gen.image(resized, align: PosTextAlign.center);
           gen.feed(1);
@@ -66,13 +69,8 @@ class PrintEscPos {
 
       const cashAmount = 100000;
 
-      gen.text(
-        outletName,
-        bold: true,
-        doubleHeight: true,
-        doubleWidth: true,
-        align: PosTextAlign.center,
-      );
+      gen.text(outletName, align: PosTextAlign.center);
+      gen.feed(1);
       if (outletAddress.isNotEmpty) {
         gen.text(outletAddress, align: PosTextAlign.center);
       }
@@ -99,7 +97,11 @@ class PrintEscPos {
       gen.hr();
 
       // Items Header
-      gen.text('Item             Qty Disc.     Total', bold: true);
+      if (paperWidth == 58) {
+        gen.text('Item      Qty  Disc. Total', bold: true);
+      } else {
+        gen.text('Item        Qty Disc.     Total', bold: true);
+      }
       gen.hr();
 
       // Items
@@ -126,8 +128,9 @@ class PrintEscPos {
       gen.hr();
 
       // Total
-      gen.text('TOTAL', bold: true, doubleHeight: true);
-      gen.text(formatRupiah(total), bold: true, doubleHeight: true, align: PosTextAlign.right);
+      // gen.text('TOTAL', bold: true, doubleHeight: true);
+      // gen.text(formatRupiah(total), bold: true, doubleHeight: true, align: PosTextAlign.right);
+      gen.rowBold('TOTAL', formatRupiah(total), doubleHeight: true);
       gen.feed(1);
 
       // Payment info
@@ -163,28 +166,28 @@ class PrintEscPos {
     required int paperWidth,
     required List<ProductModel> orderItems,
     required int total,
-    required String customerName,
-    required String queueNumber,
+    String customerName = '-',
+    String queueNumber = '-',
     required String paymentMethod,
     required String channel,
     required Future<bool> Function(List<int> bytes) printCallback,
     int? cashAmount,
     String? printUrl,
-    String? orderNo,
+    String orderNo = '-',
   }) async {
     final gen = EscPosGenerator(paperWidth: paperWidth);
     gen.init();
 
     // Header
     try {
-      final ByteData data = await rootBundle.load('assets/icons/receipt-logo.jpeg');
+      final ByteData data = await rootBundle.load(_logoPath);
       final Uint8List bytes = data.buffer.asUint8List();
       final img.Image? originalImage = img.decodeImage(bytes);
 
       if (originalImage != null) {
         // Resize to 80% of paper width (matching TSPL)
         // 58mm = 384 dots, 80mm = 576 dots at 203 DPI
-        final targetWidth = (paperWidth == 58 ? 384 : 576) * 0.8;
+        final targetWidth = (paperWidth == 58 ? 384 : 576) * _logoWidth;
         final img.Image resized = img.copyResize(originalImage, width: targetWidth.toInt());
         gen.image(resized, align: PosTextAlign.center);
         gen.feed(1);
@@ -196,13 +199,8 @@ class PrintEscPos {
     final outletName = await AuthStorage.getNamaOutlet() ?? '';
     final outletAddress = await AuthStorage.getAddress() ?? '';
     final cashierName = await AuthStorage.getName() ?? '-';
-    gen.text(
-      outletName,
-      bold: true,
-      doubleHeight: true,
-      doubleWidth: true,
-      align: PosTextAlign.center,
-    );
+    gen.text(outletName, align: PosTextAlign.center);
+    gen.feed(1);
     if (outletAddress.isNotEmpty) {
       gen.text(outletAddress, align: PosTextAlign.center);
     }
@@ -217,16 +215,10 @@ class PrintEscPos {
     gen.feed(1);
 
     // Customer info
-    if (queueNumber.isNotEmpty) {
-      gen.text('No. Antrian: $queueNumber');
-    }
-    if (orderNo != null && orderNo.isNotEmpty) {
-      gen.text('Order No: $orderNo');
-    }
+    gen.text('No. Antrian: $queueNumber');
+    gen.text('Order No: $orderNo');
     gen.text('Kasir: $cashierName');
-    if (customerName.isNotEmpty) {
-      gen.text('Customer: $customerName');
-    }
+    gen.text('Customer: $customerName');
     gen.text('Metode: $paymentMethod');
     gen.text('Sumber: $channel');
     gen.feed(1);
@@ -237,7 +229,11 @@ class PrintEscPos {
 
     // Items Header
     // Item (45%), Qty (10%), Disc (20%), Total (Remainder)
-    gen.text('Item             Qty Disc.     Total', bold: true);
+    if (paperWidth == 58) {
+      gen.text('Item      Qty  Disc. Total', bold: true);
+    } else {
+      gen.text('Item        Qty Disc.     Total', bold: true);
+    }
     gen.hr();
 
     // Items
@@ -267,8 +263,9 @@ class PrintEscPos {
     gen.feed(1);
 
     // Total
-    gen.text('TOTAL', bold: true, doubleHeight: true);
-    gen.text(formatRupiah(total), bold: true, doubleHeight: true, align: PosTextAlign.right);
+    // gen.text('TOTAL              ${formatRupiah(total)}', bold: true, doubleHeight: true);
+    // gen.text(formatRupiah(total), bold: true, doubleHeight: true, align: PosTextAlign.right);
+    gen.rowBold('TOTAL', formatRupiah(total), doubleHeight: true);
     gen.feed(1);
 
     // Payment info

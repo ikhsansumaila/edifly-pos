@@ -131,7 +131,7 @@ update_api_config() {
         mode_name="DEVELOPMENT ($stage_name)"
     fi
 
-    print_info "Set API untuk $mode_name"
+    print_info "Set API untuk $mode_name : $target_url"
     echo "const API_BASE_URL = '$target_url';" > "$API_CONFIG_FILE"
 }
 

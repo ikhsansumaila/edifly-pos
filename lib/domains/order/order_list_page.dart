@@ -684,35 +684,39 @@ class _OrderDetailSheet extends StatelessWidget {
     final orderItems =
         order.items.map((item) {
           return ProductModel(
-            id: 0,
+            id: item.idOrder,
             namaProduct: item.namaProduct,
-            harga: item.totalDetails ~/ item.qty,
+            harga: item.subTotal ~/ item.qty,
             categoryName: '',
             fotoUrl: '',
             qty: item.qty,
-            discount: 0,
+            discount: item.discountPct.toDouble(),
           );
         }).toList();
 
-    final success = await printerService.printReceipt(
-      orderItems: orderItems,
-      total: order.total,
-      customerName: '',
-      queueNumber: '',
-      paymentMethod: order.pembayaranVia,
-      channel: '',
-      printUrl: 'https://www.instagram.com/dimonggoin?igsh=Zmc1YmFiNDc3eGV5',
-      orderNo: order.orderNo,
-    );
-
-    if (success) {
-      Get.snackbar(
-        'Sukses',
-        'Struk berhasil dicetak',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.green,
-        colorText: Colors.white,
+    try {
+      final success = await printerService.printReceipt(
+        orderItems: orderItems,
+        total: order.total,
+        customerName: order.customerName,
+        queueNumber: order.queueNumber,
+        paymentMethod: order.pembayaranVia,
+        channel: order.sumber,
+        printUrl: 'https://www.instagram.com/dimonggoin?igsh=Zmc1YmFiNDc3eGV5',
+        orderNo: order.orderNo,
       );
+
+      if (success) {
+        Get.snackbar(
+          'Sukses',
+          'Struk berhasil dicetak',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
+        );
+      }
+    } catch (e) {
+      // Close loading dialog on error
     }
   }
 }
